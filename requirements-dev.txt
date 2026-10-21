@@ -1,0 +1,7 @@
+# EAGLE Development and Testing Dependencies
+-r requirements.txt
+pytest>=8.0.0
+pytest-mock>=3.12.0
+ruff>=0.4.0
+mypy>=1.9.0
+types-requests>=2.31.0

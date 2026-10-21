@@ -1,0 +1,76 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "eagle-assistant"
+version = "0.1.0"
+description = "EAGLE: Enhanced Autonomous General-purpose Local Executive - AI-powered desktop voice assistant"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [
+    { name = "Praneeth Dasari", email = "dasaripraneeth21131@gmail.com" }
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: End Users/Desktop",
+    "Operating System :: Microsoft :: Windows",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "pydantic>=2.7.0",
+    "requests>=2.31.0",
+    "pyttsx3>=2.90",
+    "sounddevice>=0.4.6",
+    "PySide6>=6.7.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-mock>=3.12.0",
+    "ruff>=0.4.0",
+    "mypy>=1.9.0",
+    "types-requests>=2.31.0",
+]
+
+[project.scripts]
+eagle = "eagle.main:main"
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+addopts = "-ra -q --strict-markers"
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort
+    "B",    # flake8-bugbear
+    "C4",   # flake8-comprehensions
+    "UP",   # pyupgrade
+]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.13"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+check_untyped_defs = true
+exclude = [
+    "^.venv/",
+    "^build/",
+    "^dist/",
+]
