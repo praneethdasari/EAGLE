@@ -104,9 +104,9 @@ Read the full threat model in [docs/SECURITY.md](docs/SECURITY.md).
 ## 🗺️ Roadmap & Milestones
 
 - **Milestone 0**: Environment Inspection & Blueprint (Completed)
-- **Milestone 1**: Foundation & Testing Infrastructure (In Progress)
-- **Milestone 2**: Voice Interaction Subsystem (STT & TTS)
-- **Milestone 3**: Safe Desktop Actions & Sandboxing
+- **Milestone 1**: Foundation & Testing Infrastructure (Completed)
+- **Milestone 2**: Voice Interaction Subsystem & Command Routing (Completed)
+- **Milestone 3**: Safe Desktop Actions & Sandboxing (Next)
 - **Milestone 4**: AI Reasoning & Tool Calling Orchestrator
 - **Milestone 5**: Wake Word Detection & Continuous Listening
 - **Milestone 6**: PySide6 Desktop GUI

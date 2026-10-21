@@ -15,10 +15,11 @@ This document maintains a truthful, verified status of all EAGLE capabilities. F
 | **Automation** | Web Browser & Search | **Planned** | Default browser URL dispatch and query sanitization | Scheduled Milestone 3 |
 | **Automation** | Sandboxed File Operations | **Planned** | Allowed directory boundary enforcement | Scheduled Milestone 3 |
 | **Automation** | System Telemetry | **Planned** | Safe CPU/RAM/Battery metrics | Scheduled Milestone 3 |
-| **Voice** | Audio Capture & VAD | **Planned** | `sounddevice` capture with thresholding | Scheduled Milestone 2 |
-| **Voice** | Speech-to-Text (STT) | **Planned** | Local Whisper / faster-whisper integration | Scheduled Milestone 2 |
-| **Voice** | Text-to-Speech (TTS) | **Planned** | Local speech synthesis with interruption support | Scheduled Milestone 2 |
-| **Voice** | Text Input Fallback | **Planned** | Silent / text command mode | Scheduled Milestone 2 |
+| **Voice** | Audio Capture & VAD | **Completed** | `sounddevice` stream capture, amplitude RMS, WAV packaging | `test_audio_capture.py` (4 tests pass) |
+| **Voice** | Speech-to-Text (STT) | **Completed** | Modular STT engine with FasterWhisperSTT and MockSTTEngine | `test_stt.py` (5 tests pass) |
+| **Voice** | Text-to-Speech (TTS) | **Completed** | Modular TTS engine with Pyttsx3TTSEngine and MockTTSEngine | `test_tts.py` (4 tests pass) |
+| **Voice** | Voice Command Routing | **Completed** | Intent extraction, normalization, and event-driven dispatch | `test_command_router.py` (12 tests pass) |
+| **Voice** | Text Input Fallback | **Completed** | Silent / text command processing via CLI and EventBus | `test_command_router.py` (12 tests pass) |
 | **Voice** | Wake Word Detection | **Planned** | "Hey EAGLE" activation | Scheduled Milestone 5 |
 | **Intelligence** | AI Provider Interface | **Planned** | Pluggable cloud/local model providers | Scheduled Milestone 4 |
 | **Intelligence** | Structured Tool Calling | **Planned** | Schema generation & validation loop | Scheduled Milestone 4 |

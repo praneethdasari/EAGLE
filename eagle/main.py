@@ -5,7 +5,14 @@ import sys
 
 from eagle import __app_name__, __description__, __version__
 from eagle.core.config import load_config
+from eagle.core.events import (
+    EventBus,
+    SpeechOutputRequestedEvent,
+    ToolExecutionRequestedEvent,
+)
 from eagle.core.logging import get_logger, setup_logging
+from eagle.services.command_router import CommandIntent, CommandRouter
+from eagle.tools.registry import ToolRegistry
 
 BANNER = f"""
 ====================================================================
@@ -66,17 +73,41 @@ def main(args: list[str] | None = None) -> int:
     print(BANNER)
     print(f"Loaded configuration for {config.app_name}. Log level: {log_level}")
 
+    # 3. Initialize EventBus, ToolRegistry, and CommandRouter
+    event_bus = EventBus()
+    tool_registry = ToolRegistry(
+        confirm_sensitive_actions=config.security.confirm_sensitive_actions
+    )
+    router = CommandRouter(config=config, tool_registry=tool_registry, event_bus=event_bus)
+
+    # Wire event feedback
+    def on_speech_output(evt: SpeechOutputRequestedEvent) -> None:
+        print(f"\n[EAGLE Spoken]: {evt.text}")
+
+    def on_tool_request(evt: ToolExecutionRequestedEvent) -> None:
+        print(f"[EAGLE Tool Request]: {evt.tool_name} with {evt.arguments}")
+
+    event_bus.subscribe(SpeechOutputRequestedEvent, on_speech_output)
+    event_bus.subscribe(ToolExecutionRequestedEvent, on_tool_request)
+
     if parsed.cli:
         print("Running in CLI mode. Type 'quit' or 'exit' to stop.")
         try:
             while True:
                 user_input = input("\nEAGLE> ").strip()
-                if user_input.lower() in ("quit", "exit"):
-                    print("Shutting down EAGLE. Goodbye!")
-                    break
                 if not user_input:
                     continue
-                print(f"[EAGLE Echo]: You said: {user_input}")
+                route = router.route(user_input)
+                print(f"[Routed Intent]: {route.intent.value} | Matched: {route.matched_rule}")
+                router.dispatch(route)
+
+                if route.intent == CommandIntent.SYSTEM_CONTROL and route.action_name in (
+                    "exit",
+                    "quit",
+                    "goodbye",
+                ):
+                    print("Shutting down EAGLE. Goodbye!")
+                    break
         except (KeyboardInterrupt, EOFError):
             print("\nShutting down EAGLE. Goodbye!")
             return 0

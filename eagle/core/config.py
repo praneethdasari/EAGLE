@@ -20,6 +20,7 @@ class AudioConfig(BaseModel):
     stt_model_size: str = Field(
         default="base", description="Whisper model size (tiny, base, small, medium)"
     )
+    tts_voice: str = Field(default="default", description="TTS voice identifier or 'mock'")
     tts_rate: int = Field(default=175, ge=50, le=400, description="TTS words per minute")
     tts_volume: float = Field(default=1.0, ge=0.0, le=1.0, description="TTS volume")
     wake_word_enabled: bool = Field(

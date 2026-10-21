@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.0] - 2026-10-21
+
+### Added
+- **Speech-to-Text Subsystem (`eagle.services.stt`)**: Created `BaseSTTEngine` interface, `TranscriptionResult` model, `FasterWhisperSTT` integration with CTranslate2 Whisper models, and deterministic `MockSTTEngine` for offline testing.
+- **Text-to-Speech Subsystem (`eagle.services.tts`)**: Created `BaseTTSEngine` interface, `Pyttsx3TTSEngine` with Windows SAPI5 voice output, interruptibility support via `stop()`, and `MockTTSEngine`.
+- **Audio Capture Subsystem (`eagle.services.audio_capture`)**: Created `AudioCaptureManager` for microphone stream recording via `sounddevice`, input device enumeration, RMS amplitude calculation for visualizers, and WAV packaging.
+- **Voice Command Router (`eagle.services.command_router`)**: Built natural language command parsing with conversational filler stripping, regex pattern matching, and intent classification (`SYSTEM_CONTROL`, `APP_LAUNCH`, `WEB_SEARCH`, `WEB_OPEN`, `SYSTEM_INFO`, `FILE_OPERATION`, `CONVERSATION`).
+- **EventBus Integration**: Connected voice transcription and text command events directly to the command router for automated action and speech dispatch.
+- **Interactive CLI Routing**: Integrated `CommandRouter` into `eagle.main` with live intent classification and verbal speech output feedback.
+- **Unit Test Suite Expansion**: Added 25 new unit tests across `test_stt.py`, `test_tts.py`, `test_audio_capture.py`, and `test_command_router.py` bringing test coverage to 47 passing tests.
+
+---
+
 ## [0.1.0] - 2026-10-21
 
 ### Added

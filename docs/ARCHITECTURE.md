@@ -123,6 +123,12 @@ EAGLE/
 - The `ToolRegistry` enforces an allowlist: only explicitly registered tools can ever be executed.
 - Sensitive tools require an explicit confirmation token or approval callback before execution.
 
+### 3.6 `eagle.services`
+- **Audio Capture (`audio_capture.py`)**: Safely enumerates microphones via `sounddevice`, captures mono 16-bit PCM streams, calculates RMS amplitude for UI audio visualizers, and packages data into WAV containers.
+- **Speech-to-Text (`stt.py`)**: Abstract `BaseSTTEngine` with implementations for local `FasterWhisperSTT` and offline deterministic `MockSTTEngine`.
+- **Text-to-Speech (`tts.py`)**: Abstract `BaseTTSEngine` providing Windows SAPI5 voice output via `Pyttsx3TTSEngine` with immediate `stop()` speech interruption support and offline `MockTTSEngine`.
+- **Command Router (`command_router.py`)**: Normalizes input speech/text, extracts conversational fillers, classifies intents (`SYSTEM_CONTROL`, `APP_LAUNCH`, `WEB_SEARCH`, `WEB_OPEN`, `SYSTEM_INFO`, `FILE_OPERATION`, `CONVERSATION`), and dispatches events via the `EventBus`.
+
 ---
 
 ## 4. Concurrency & Threading Model

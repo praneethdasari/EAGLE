@@ -25,12 +25,13 @@ This roadmap tracks the development lifecycle of **EAGLE** (Enhanced Autonomous 
 
 ---
 
-## Milestone 2: Voice Subsystem (Speech-to-Text & Text-to-Speech)
-- [ ] **2.1** Audio capture abstraction (`eagle/services/audio_capture.py`): device enumeration, safe microphone capture, noise thresholding, graceful fallback.
-- [ ] **2.2** Speech-to-Text engine (`eagle/services/stt.py`): modular interface supporting local faster-whisper / Whisper fallback.
-- [ ] **2.3** Text-to-Speech engine (`eagle/services/tts.py`): modular voice interface (pyttsx3 / Windows SAPI5 / Piper / edge-tts) with interruptibility.
-- [ ] **2.4** Text-input fallback interface for silent/headless/unavailable microphone modes.
-- [ ] **2.5** Unit and mock integration tests for voice interaction pipelines.
+## Milestone 2: Voice Subsystem (Speech-to-Text, Text-to-Speech & Command Routing)
+- [x] **2.1** Audio capture abstraction (`eagle/services/audio_capture.py`): device enumeration, safe microphone capture, noise thresholding, graceful fallback.
+- [x] **2.2** Speech-to-Text engine (`eagle/services/stt.py`): modular interface supporting local faster-whisper / Whisper fallback and MockSTT.
+- [x] **2.3** Text-to-Speech engine (`eagle/services/tts.py`): modular voice interface (pyttsx3 / Windows SAPI5 / MockTTS) with interruptibility.
+- [x] **2.4** Text-input fallback interface for silent/headless/unavailable microphone modes via CLI and EventBus.
+- [x] **2.5** Voice command recognition and routing (`eagle/services/command_router.py`): intent classification, normalization, parameter extraction, and event dispatching.
+- [x] **2.6** Unit and mock integration tests for voice interaction pipelines (`tests/unit/test_stt.py`, `test_tts.py`, `test_audio_capture.py`, `test_command_router.py`).
 
 ---
 
