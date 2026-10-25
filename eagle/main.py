@@ -4,15 +4,31 @@ import argparse
 import sys
 
 from eagle import __app_name__, __description__, __version__
-from eagle.core.config import load_config
+from eagle.core.config import EagleConfig, load_config
 from eagle.core.events import (
     EventBus,
     SpeechOutputRequestedEvent,
+    ToolExecutionCompletedEvent,
     ToolExecutionRequestedEvent,
 )
 from eagle.core.logging import get_logger, setup_logging
 from eagle.services.command_router import CommandIntent, CommandRouter
+from eagle.tools.apps import LaunchAppTool
+from eagle.tools.files import InspectFileTool, ListFilesTool
 from eagle.tools.registry import ToolRegistry
+from eagle.tools.system import SystemInfoTool
+from eagle.tools.web import OpenWebsiteTool, WebSearchTool
+
+
+def register_default_tools(registry: ToolRegistry, config: EagleConfig) -> None:
+    """Register all standard desktop automation tools with the ToolRegistry."""
+    registry.register(LaunchAppTool(security_config=config.security))
+    registry.register(OpenWebsiteTool(security_config=config.security))
+    registry.register(WebSearchTool())
+    registry.register(ListFilesTool(security_config=config.security))
+    registry.register(InspectFileTool(security_config=config.security))
+    registry.register(SystemInfoTool())
+
 
 BANNER = f"""
 ====================================================================
@@ -78,6 +94,7 @@ def main(args: list[str] | None = None) -> int:
     tool_registry = ToolRegistry(
         confirm_sensitive_actions=config.security.confirm_sensitive_actions
     )
+    register_default_tools(tool_registry, config)
     router = CommandRouter(config=config, tool_registry=tool_registry, event_bus=event_bus)
 
     # Wire event feedback
@@ -85,7 +102,31 @@ def main(args: list[str] | None = None) -> int:
         print(f"\n[EAGLE Spoken]: {evt.text}")
 
     def on_tool_request(evt: ToolExecutionRequestedEvent) -> None:
-        print(f"[EAGLE Tool Request]: {evt.tool_name} with {evt.arguments}")
+        logger.info("Executing requested tool '%s' with args %s", evt.tool_name, evt.arguments)
+        try:
+            result = tool_registry.execute(evt.tool_name, evt.arguments)
+            event_bus.publish(
+                ToolExecutionCompletedEvent(
+                    tool_name=evt.tool_name,
+                    success=result.success,
+                    result=result.output,
+                    error=result.error,
+                )
+            )
+            if result.success and result.output:
+                print(f"[Tool Output]:\n{result.output}")
+            elif not result.success:
+                print(f"[Tool Error]: {result.error}")
+        except Exception as exc:
+            logger.error("Failed executing tool '%s': %s", evt.tool_name, exc)
+            event_bus.publish(
+                ToolExecutionCompletedEvent(
+                    tool_name=evt.tool_name,
+                    success=False,
+                    error=str(exc),
+                )
+            )
+            print(f"[Tool Execution Exception]: {exc}")
 
     event_bus.subscribe(SpeechOutputRequestedEvent, on_speech_output)
     event_bus.subscribe(ToolExecutionRequestedEvent, on_tool_request)

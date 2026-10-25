@@ -41,6 +41,22 @@ As an AI-powered desktop voice assistant with system automation capabilities, EA
 - Audio buffers are cleared from memory once speech-to-text processing completes.
 - No continuous audio is streamed to third-party cloud servers unless a cloud STT provider is explicitly enabled by the user.
 
+### 2.6 Application Launcher Isolation
+- Executable paths are strictly derived from `SecurityConfig.allowed_applications`.
+- Arbitrary executable paths or untrusted command-line overrides are rejected.
+- Subprocesses are executed using argument arrays (`[executable]`), never shell command strings (`shell=False`).
+- Path traversal sequences (`../`, `..\`) in requested application names are rejected immediately.
+
+### 2.7 Web URL & Search Sanitization
+- URLs are strictly limited to `http` and `https` schemes; dangerous schemes (`file:`, `javascript:`, `data:`, `ftp:`) are rejected.
+- Embedded username/password credentials in URLs (`http://user:pass@host`) are blocked.
+- Hostnames must be non-empty and well-formed.
+- Web search queries are screened to block accidental transmission of secret API keys (`sk-...`, `ghp_...`, `bearer ...`), passwords, or local filesystem paths.
+
+### 2.8 Symlink Escape Mitigation
+- Filesystem paths are canonicalized using `Path.resolve()`, resolving all symlinks to their ultimate target before comparing against configured allowed directory roots (`SecurityConfig.allowed_directories`).
+- Symlinks pointing outside permitted boundaries are detected and rejected with `SecurityViolationError`.
+
 ---
 
 ## 3. Reporting Vulnerabilities

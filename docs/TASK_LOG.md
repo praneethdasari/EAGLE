@@ -81,3 +81,37 @@ This document records completed development tasks, affected files, tests execute
 - **Git Commit**: `b92964e` (`feat(voice): implement reliable voice command recognition and routing`)
 - **GitHub Push Target**: `origin/main` (`https://github.com/praneethdasari/EAGLE.git`)
 - **Status**: Completed
+
+---
+
+## Task 003: Safe Desktop Actions & Automation (Milestone 3)
+- **Date**: 2026-10-25
+- **Architect/Engineer**: Google Antigravity (Lead Architect & Senior Developer)
+- **Objective**: Implement concrete, secure desktop automation tools (`LaunchAppTool`, `OpenWebsiteTool`, `WebSearchTool`, `ListFilesTool`, `InspectFileTool`, `SystemInfoTool`), integrate them into `main.py` startup and `CommandRouter` dispatch, wire event loop completion notifications, and add comprehensive unit and integration test coverage.
+- **Files Created/Modified**:
+  - `eagle/tools/apps.py` (`LaunchAppTool`: allowlist enforcement, path traversal rejection, safe detached subprocess spawning)
+  - `eagle/tools/web.py` (`OpenWebsiteTool` & `WebSearchTool`: HTTP/HTTPS scheme enforcement, credential/path leak prevention)
+  - `eagle/tools/files.py` (`ListFilesTool` & `InspectFileTool`: sandboxed directory listing, `..` traversal and symlink defense)
+  - `eagle/tools/system.py` (`SystemInfoTool`: safe OS platform, CPU utilization, RAM usage, and battery metrics)
+  - `eagle/tools/__init__.py` (exported all concrete tools and argument schemas)
+  - `eagle/services/command_router.py` (added file operation patterns, topic resolution, and event dispatch)
+  - `eagle/main.py` (registered default tools, wired `ToolExecutionCompletedEvent` feedback, interactive CLI loop)
+  - `pyproject.toml` (added psutil and types-psutil)
+  - `requirements.txt` (added psutil)
+  - `requirements-dev.txt` (added types-psutil)
+  - `tests/unit/test_tools.py` (33 tests covering all desktop automation tools, edge cases, symlink escapes, and end-to-end integration)
+  - `docs/ARCHITECTURE.md` (documented tool subsystem in Section 3.5)
+  - `docs/SECURITY.md` (added sections 2.6, 2.7, and 2.8 covering app launcher, web sanitization, and symlink defenses)
+  - `docs/SETUP.md` (added interactive CLI mode verification)
+  - `docs/FEATURE_STATUS.md` (marked all automation capabilities Completed)
+  - `docs/IMPLEMENTATION_PLAN.md` (marked Milestone 3 items Completed)
+  - `CHANGELOG.md` (added [0.3.0] entry)
+  - `README.md` (added Desktop Automation section and updated roadmap)
+  - `docs/TASK_LOG.md` (recorded Task 003)
+- **Tests Executed**:
+  - `pytest` (80/80 tests passing in 0.58s)
+  - `ruff check eagle tests` (All clean)
+  - `mypy eagle tests` (Success: no issues found in 33 source files)
+- **Git Commit**: `550916a` (`feat(automation): implement safe desktop action tools and command routing`)
+- **GitHub Push Target**: `origin/main` (`https://github.com/praneethdasari/EAGLE.git`)
+- **Status**: Completed

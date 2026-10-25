@@ -254,18 +254,39 @@ class CommandRouter:
     def _check_system_info(self, text: str, raw: str) -> CommandRoute | None:
         # Matches: "system status", "battery level", "cpu usage", "system info", "how much battery"
         if re.search(r"\b(battery|cpu|ram|memory|system status|system info)\b", text):
+            topic = "all"
+            if "battery" in text:
+                topic = "battery"
+            elif "cpu" in text:
+                topic = "cpu"
+            elif "ram" in text or "memory" in text:
+                topic = "memory"
             return CommandRoute(
                 intent=CommandIntent.SYSTEM_INFO,
                 raw_text=raw,
                 normalized_text=text,
                 action_name="system_info",
-                parameters={"topic": "system"},
+                parameters={"topic": topic},
                 confidence=0.9,
                 matched_rule="system_info",
             )
         return None
 
     def _check_file_operations(self, text: str, raw: str) -> CommandRoute | None:
+        # Matches: "inspect file report.txt", "check file notes.md", "view file readme.txt"
+        inspect_match = re.match(r"^(?:inspect|check|view)\s+(?:the\s+)?file\s+(.+)$", text)
+        if inspect_match:
+            target_file = inspect_match.group(1).strip()
+            return CommandRoute(
+                intent=CommandIntent.FILE_OPERATION,
+                raw_text=raw,
+                normalized_text=text,
+                action_name="inspect_file",
+                parameters={"path": target_file},
+                confidence=0.9,
+                matched_rule="file_inspection",
+            )
+
         # Matches: "list files", "show files in documents", "view files"
         match = re.match(r"^(?:list|show|view)\s+(?:the\s+)?files(?:\s+in\s+(.+))?$", text)
         if match:
@@ -344,10 +365,37 @@ class CommandRouter:
             return
 
         if route.intent == CommandIntent.SYSTEM_INFO:
-            self.event_bus.publish(SpeechOutputRequestedEvent(text="Checking system status."))
+            topic = route.parameters.get("topic", "all")
+            if topic == "battery":
+                msg = "Checking battery level."
+            elif topic == "cpu":
+                msg = "Checking CPU usage."
+            elif topic == "memory":
+                msg = "Checking memory usage."
+            else:
+                msg = "Checking system status."
+            self.event_bus.publish(SpeechOutputRequestedEvent(text=msg))
             self.event_bus.publish(
                 ToolExecutionRequestedEvent(
                     tool_name="system_info",
+                    arguments=route.parameters,
+                )
+            )
+            return
+
+        if route.intent == CommandIntent.FILE_OPERATION:
+            action = route.action_name or "list_files"
+            if action == "inspect_file":
+                path = route.parameters.get("path", "")
+                self.event_bus.publish(SpeechOutputRequestedEvent(text=f"Inspecting file {path}."))
+            else:
+                target_dir = route.parameters.get("directory", "")
+                dir_desc = f" in {target_dir}" if target_dir else ""
+                self.event_bus.publish(SpeechOutputRequestedEvent(text=f"Listing files{dir_desc}."))
+
+            self.event_bus.publish(
+                ToolExecutionRequestedEvent(
+                    tool_name=action,
                     arguments=route.parameters,
                 )
             )

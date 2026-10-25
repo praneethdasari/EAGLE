@@ -101,13 +101,27 @@ Read the full threat model in [docs/SECURITY.md](docs/SECURITY.md).
 
 ---
 
+---
+
+## ⚡ Desktop Automation & Tools
+
+EAGLE executes verified desktop automation actions through a sandboxed tool registry:
+- **Application Launcher (`launch_app`)**: Safely launches approved applications (e.g. Notepad, Calculator, Edge) from `SecurityConfig.allowed_applications` without shell injection.
+- **Web Navigation (`open_website`)**: Validates and opens verified HTTP/HTTPS addresses in the user's default browser, strictly blocking non-web schemes and embedded credentials.
+- **Web Search (`web_search`)**: Queries Google, DuckDuckGo, or Bing while blocking transmission of local file paths or secret API tokens.
+- **Sandboxed Directory Listing (`list_files`)**: Inspects permitted directory contents with formatted sizes and timestamps, stopping `..` traversal and symlink escapes.
+- **File Metadata Inspection (`inspect_file`)**: Non-destructively reads file timestamps, sizes, and file types within allowed directories.
+- **System Telemetry (`system_info`)**: Gathers live platform, CPU utilization, memory, and battery status metrics via `psutil`.
+
+---
+
 ## 🗺️ Roadmap & Milestones
 
 - **Milestone 0**: Environment Inspection & Blueprint (Completed)
 - **Milestone 1**: Foundation & Testing Infrastructure (Completed)
 - **Milestone 2**: Voice Interaction Subsystem & Command Routing (Completed)
-- **Milestone 3**: Safe Desktop Actions & Sandboxing (Next)
-- **Milestone 4**: AI Reasoning & Tool Calling Orchestrator
+- **Milestone 3**: Safe Desktop Actions & Automation (Completed)
+- **Milestone 4**: AI Reasoning & Tool Calling Orchestrator (Next)
 - **Milestone 5**: Wake Word Detection & Continuous Listening
 - **Milestone 6**: PySide6 Desktop GUI
 - **Milestone 7**: Release Hardening & Windows Executable Packaging

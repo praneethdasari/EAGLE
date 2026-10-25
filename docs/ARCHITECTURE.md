@@ -118,10 +118,29 @@ EAGLE/
 - Prevents tight coupling or circular imports between services.
 
 ### 3.5 `eagle.tools`
-- Every tool inherits from `BaseTool`.
-- Strict input parameter schemas using Pydantic models.
+- Every tool inherits from `BaseTool` with typed Pydantic parameters schema and structured `ToolResult`.
 - The `ToolRegistry` enforces an allowlist: only explicitly registered tools can ever be executed.
 - Sensitive tools require an explicit confirmation token or approval callback before execution.
+- **`LaunchAppTool` (`eagle/tools/apps.py`)**:
+  - Validates requested application against `SecurityConfig.allowed_applications`.
+  - Rejects path traversal sequences and untrusted executable path overrides.
+  - Spawns subprocesses detached using argument arrays (`[executable]`), never raw shell strings (`shell=False`).
+- **`OpenWebsiteTool` (`eagle/tools/web.py`)**:
+  - Enforces HTTP/HTTPS protocol validation, blocking dangerous schemes (`file:`, `javascript:`, `data:`, `ftp:`).
+  - Sanitizes hostnames, blocks embedded user/password credentials, and opens URLs in the operating system default browser.
+- **`WebSearchTool` (`eagle/tools/web.py`)**:
+  - Formats natural language web queries across configurable search providers (Google, DuckDuckGo, Bing).
+  - Inspects queries to prevent accidental leakage of local file paths, API keys, bearer tokens, or secrets.
+- **`ListFilesTool` (`eagle/tools/files.py`)**:
+  - Sandboxed directory reader restricted strictly to `SecurityConfig.allowed_directories`.
+  - Blocks `..` traversal and symlink escapes using canonical path resolution (`Path.resolve()`).
+  - Returns structured, human-readable directory listings with file sizes, timestamps, and entry limits.
+- **`InspectFileTool` (`eagle/tools/files.py`)**:
+  - Inspects file metadata (size, created, modified, type, symlink status) within allowed boundaries.
+  - Non-destructive and strictly read-only; does not modify files or read arbitrary file contents.
+- **`SystemInfoTool` (`eagle/tools/system.py`)**:
+  - Reads non-invasive telemetry metrics: operating system platform, CPU utilization and cores, RAM usage, and battery level via `psutil`.
+  - Supports topic-based filtering (`battery`, `cpu`, `memory`, `platform`, `all`). Gracefully handles unavailable sensors.
 
 ### 3.6 `eagle.services`
 - **Audio Capture (`audio_capture.py`)**: Safely enumerates microphones via `sounddevice`, captures mono 16-bit PCM streams, calculates RMS amplitude for UI audio visualizers, and packages data into WAV containers.

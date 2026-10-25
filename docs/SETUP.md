@@ -59,7 +59,18 @@ Edit `.env` if you wish to configure cloud AI providers (OpenAI, Gemini, Anthrop
 ```powershell
 pytest
 ```
-Expected output: All unit tests pass with zero failures.
+Expected output: 80 unit tests pass with zero failures.
+
+### Run in Interactive CLI Mode
+```powershell
+python -m eagle.main --cli
+```
+Try commands like:
+- `open notepad`
+- `what is my battery level`
+- `list files`
+- `search the web for quantum computing`
+- `exit`
 
 ---
 

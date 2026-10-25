@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.3.0] - 2026-10-25
+
+### Added
+- **Desktop Application Launcher (`eagle.tools.apps.LaunchAppTool`)**: Secure process launching for approved applications registered in `SecurityConfig.allowed_applications` without shell injection (`shell=False`) or path traversal vulnerabilities.
+- **Web Browsing & Search Tools (`eagle.tools.web`)**:
+  - `OpenWebsiteTool`: Validates and navigates to HTTP and HTTPS URLs in the default browser, strictly blocking non-HTTP schemes, embedded credentials, and malformed hostnames.
+  - `WebSearchTool`: Natural language web searches across Google, DuckDuckGo, and Bing with automatic detection and blocking of sensitive credentials (API tokens, passwords) or local file paths.
+- **Sandboxed Filesystem Operations (`eagle.tools.files`)**:
+  - `ListFilesTool`: Sandboxed directory listing strictly restricted to `SecurityConfig.allowed_directories`, featuring `..` traversal defense, symlink escape protection, formatted sizes/timestamps, and entry pagination.
+  - `InspectFileTool`: Read-only, non-destructive file metadata inspection (size, created/modified dates, extension, symlink target).
+- **System Telemetry Tool (`eagle.tools.system.SystemInfoTool`)**: System metrics reporting for OS platform, CPU utilization and cores, RAM usage, and battery status via `psutil`.
+- **Command Routing & Tool Dispatch Integration**:
+  - Registered all 6 concrete tools with `ToolRegistry` on startup in `eagle.main`.
+  - Wired `CommandRouter` dispatch for `APP_LAUNCH`, `WEB_SEARCH`, `WEB_OPEN`, `SYSTEM_INFO`, and `FILE_OPERATION` (`list_files` and `inspect_file`).
+  - Added interactive CLI execution loop and event-driven tool execution feedback via `ToolExecutionCompletedEvent`.
+- **Unit & Integration Test Suite Expansion**: Added 33 comprehensive tests in `tests/unit/test_tools.py`, expanding the test suite to 80 passing tests (100% offline, 0 failures).
+
+---
+
 ## [0.2.0] - 2026-10-21
 
 ### Added

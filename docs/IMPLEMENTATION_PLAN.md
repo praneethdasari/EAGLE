@@ -36,12 +36,12 @@ This roadmap tracks the development lifecycle of **EAGLE** (Enhanced Autonomous 
 ---
 
 ## Milestone 3: Safe Desktop Automation & Tooling
-- [ ] **3.1** Application launcher tool (`eagle/tools/apps.py`): configurable registry, OS process launching, error reporting.
-- [ ] **3.2** Web browser & search tool (`eagle/tools/web.py`): default browser URL opening, search engine query formatting.
-- [ ] **3.3** Secure filesystem tool (`eagle/tools/files.py`): allowed directory boundary enforcement, path traversal defense, file inspect/create.
-- [ ] **3.4** System info tool (`eagle/tools/system.py`): safe battery, memory, CPU, OS telemetry inspection.
-- [ ] **3.5** Confirmation & audit system for sensitive operations (deletion, overwriting, bulk moves).
-- [ ] **3.6** Comprehensive unit tests for desktop tools and safety policies.
+- [x] **3.1** Application launcher tool (`eagle/tools/apps.py`): configurable registry, OS process launching, error reporting.
+- [x] **3.2** Web browser & search tool (`eagle/tools/web.py`): default browser URL opening, search engine query formatting.
+- [x] **3.3** Secure filesystem tool (`eagle/tools/files.py`): allowed directory boundary enforcement, path traversal defense, file inspect/create.
+- [x] **3.4** System info tool (`eagle/tools/system.py`): safe battery, memory, CPU, OS telemetry inspection.
+- [x] **3.5** Confirmation & audit system for sensitive operations (deletion, overwriting, bulk moves).
+- [x] **3.6** Comprehensive unit tests for desktop tools and safety policies.
 
 ---
 
