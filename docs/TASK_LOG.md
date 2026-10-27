@@ -115,3 +115,32 @@ This document records completed development tasks, affected files, tests execute
 - **Git Commit**: `550916a` (`feat(automation): implement safe desktop action tools and command routing`)
 - **GitHub Push Target**: `origin/main` (`https://github.com/praneethdasari/EAGLE.git`)
 - **Status**: Completed
+
+---
+
+## Task 004: AI Reasoning Engine, Conversation Memory & Structured Tool Calling (Milestone 4)
+- **Date**: 2026-10-27
+- **Architect/Engineer**: Google Antigravity (Lead Architect & Senior Developer)
+- **Objective**: Implement modular AI reasoning subsystem (`BaseAIProvider`, `OpenAICompatibleProvider`, `MockAIProvider`), sliding-window conversation context manager (`ConversationManager`), dynamic tool calling orchestrator (`AIOrchestrator`), exception handling hierarchy (`NetworkTimeoutError`), wire `CommandRouter` and `main.py` fallback, and add comprehensive unit tests.
+- **Files Created/Modified**:
+  - `eagle/core/config.py` (added `api_key`, `base_url`, `timeout_seconds`, `max_conversation_turns`, `max_tool_iterations` to `AIConfig`)
+  - `eagle/core/exceptions.py` (added `NetworkTimeoutError` subclass of `AIProviderError`)
+  - `eagle/services/__init__.py` (exported all AI provider and orchestration models)
+  - `eagle/services/ai_provider.py` (`BaseAIProvider`, `OpenAICompatibleProvider`, `MockAIProvider`, `ConversationManager`, `AIOrchestrator`, `ChatMessage`, `ToolCall`, `AIResponse`, factory)
+  - `eagle/services/command_router.py` (wired conversational fallback to `AIOrchestrator.process_query()`)
+  - `eagle/main.py` (initialized `AIOrchestrator`, wired speech feedback and event dispatch loop)
+  - `tests/unit/test_ai_provider.py` (18 unit tests covering providers, error mapping, tool call loop, security allowlists, and context manager)
+  - `docs/ARCHITECTURE.md` (documented Section 3.7 AI Provider & Reasoning Subsystem)
+  - `docs/SECURITY.md` (documented Section 2.9 AI Provider Safety & Tool Calling Isolation)
+  - `docs/FEATURE_STATUS.md` (marked Intelligence capabilities as Completed)
+  - `docs/IMPLEMENTATION_PLAN.md` (marked Milestone 4 tasks as Completed)
+  - `CHANGELOG.md` (added [0.4.0] entry)
+  - `docs/TASK_LOG.md` (recorded Task 004)
+- **Tests Executed**:
+  - `pytest` (98/98 tests passing in 0.85s)
+  - `ruff check eagle tests` (All clean)
+  - `mypy eagle tests` (Success: no issues found in 21 source files)
+- **Git Commit**: `f24833a` (`feat(ai): complete reasoning and structured tool calling`)
+- **GitHub Push Target**: `origin/main` (`https://github.com/praneethdasari/EAGLE.git`)
+- **Status**: Completed
+

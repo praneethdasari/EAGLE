@@ -46,11 +46,12 @@ This roadmap tracks the development lifecycle of **EAGLE** (Enhanced Autonomous 
 ---
 
 ## Milestone 4: AI Reasoning & Tool Calling Orchestrator
-- [ ] **4.1** AI provider interface (`eagle/services/ai_provider.py`): pluggable cloud models (OpenAI, Anthropic, Gemini, Groq) and local models (Ollama).
-- [ ] **4.2** System prompt engineering with EAGLE personality, capabilities, and safety constraints.
-- [ ] **4.3** Tool invocation orchestrator: mapping user intent to registered allowlisted tools, argument validation, safe execution loop.
-- [ ] **4.4** Conversation memory manager: context window budgeting, turn history, token budgeting.
-- [ ] **4.5** Error recovery: handling rate limits, network timeouts, invalid JSON, model hallucination.
+- [x] **4.1** AI provider interface (`eagle/services/ai_provider.py`): pluggable cloud models (OpenAI, Anthropic, Gemini, Groq) and local models (Ollama).
+- [x] **4.2** System prompt engineering with EAGLE personality, capabilities, and safety constraints.
+- [x] **4.3** Tool invocation orchestrator: mapping user intent to registered allowlisted tools, argument validation, safe execution loop.
+- [x] **4.4** Conversation memory manager: context window budgeting, turn history, token budgeting.
+- [x] **4.5** Error recovery: handling rate limits, network timeouts, invalid JSON, model hallucination.
+
 
 ---
 

@@ -7,7 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.4.0] - 2026-10-27
+
+### Added
+- **AI Reasoning Subsystem (`eagle.services.ai_provider`)**:
+  - `BaseAIProvider`: Abstract provider interface with credential availability check and typed response generation.
+  - `OpenAICompatibleProvider`: Universal REST client compatible with OpenAI, Groq, Ollama, and local OpenAI-compatible endpoints with configurable timeouts, retries, and error handling.
+  - `MockAIProvider`: Fully offline, deterministic AI provider for unit testing, test suites, and CI environments without external API keys.
+  - `ConversationManager`: Sliding-window conversational turn manager enforcing `max_conversation_turns` while preserving the baseline system prompt.
+  - `AIOrchestrator`: High-level orchestrator extracting tool schemas from `ToolRegistry`, dispatching structured tool calls up to `max_tool_iterations`, coordinating multi-turn tool loops, and synthesizing final answers.
+- **AI Error Recovery & Resilience**:
+  - Structured exception hierarchy for `AuthenticationError`, `NetworkTimeoutError`, `RateLimitExceededError`, `ModelUnavailableError`, and `InvalidResponseError`.
+  - Spoken diagnostic feedback published over `EventBus` when AI provider fails or credentials are unconfigured.
+- **Command Router & Main Integration**:
+  - Connected `CommandRouter` conversational fallback to `AIOrchestrator.process_query()`.
+  - Initialized `AIOrchestrator` in `eagle.main` with automatic event-driven feedback.
+- **Unit Test Suite Expansion**: Added 18 unit tests in `tests/unit/test_ai_provider.py` covering providers, context pruning, tool call loops, allowlist enforcement, sensitive action gating, and network error handling (98 total tests passing).
+
+---
+
 ## [0.3.0] - 2026-10-25
+
 
 ### Added
 - **Desktop Application Launcher (`eagle.tools.apps.LaunchAppTool`)**: Secure process launching for approved applications registered in `SecurityConfig.allowed_applications` without shell injection (`shell=False`) or path traversal vulnerabilities.

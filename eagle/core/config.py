@@ -48,6 +48,21 @@ class AIConfig(BaseModel):
         ),
         description="Base persona prompt",
     )
+    api_key: str | None = Field(
+        default=None, description="Optional API key override (prefers environment variable)"
+    )
+    base_url: str | None = Field(
+        default=None, description="Custom base URL for OpenAI-compatible providers or local Ollama"
+    )
+    timeout_seconds: float = Field(
+        default=30.0, ge=1.0, le=120.0, description="Network timeout in seconds"
+    )
+    max_conversation_turns: int = Field(
+        default=20, ge=1, le=100, description="Maximum conversation history turns to retain"
+    )
+    max_tool_iterations: int = Field(
+        default=3, ge=1, le=10, description="Maximum consecutive tool call loops per query"
+    )
 
 
 class SecurityConfig(BaseModel):

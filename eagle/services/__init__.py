@@ -1,5 +1,16 @@
 """EAGLE Services subsystem package."""
 
+from eagle.services.ai_provider import (
+    AIOrchestrator,
+    AIResponse,
+    BaseAIProvider,
+    ChatMessage,
+    ConversationManager,
+    MockAIProvider,
+    OpenAICompatibleProvider,
+    ToolCall,
+    get_ai_provider,
+)
 from eagle.services.audio_capture import (
     AudioCaptureManager,
     AudioDeviceInfo,
@@ -28,6 +39,16 @@ from eagle.services.tts import (
 )
 
 __all__ = [
+    # AI Reasoning & Tool Calling
+    "BaseAIProvider",
+    "MockAIProvider",
+    "OpenAICompatibleProvider",
+    "ChatMessage",
+    "ToolCall",
+    "AIResponse",
+    "ConversationManager",
+    "AIOrchestrator",
+    "get_ai_provider",
     # Audio capture
     "AudioCaptureManager",
     "AudioDeviceInfo",

@@ -20,8 +20,10 @@ This document maintains a truthful, verified status of all EAGLE capabilities. F
 | **Voice** | Text-to-Speech (TTS) | **Completed** | Modular TTS engine with Pyttsx3TTSEngine and MockTTSEngine | `test_tts.py` (4 tests pass) |
 | **Voice** | Voice Command Routing | **Completed** | Intent extraction, normalization, and event-driven dispatch | `test_command_router.py` (12 tests pass) |
 | **Voice** | Text Input Fallback | **Completed** | Silent / text command processing via CLI and EventBus | `test_command_router.py` (12 tests pass) |
+| **Intelligence** | AI Provider Interface | **Completed** | Modular AI provider (`BaseAIProvider`, `OpenAICompatibleProvider`, `MockAIProvider`) supporting OpenAI, Groq, and Ollama | `test_ai_provider.py` (7 tests pass) |
+| **Intelligence** | Structured Tool Calling | **Completed** | Dynamic JSON schema generation from `ToolRegistry`, multi-turn execution loop, security allowlist enforcement | `test_ai_provider.py` (6 tests pass) |
+| **Intelligence** | Conversation Memory & Context | **Completed** | Sliding-window context management, turn budgeting, baseline system persona preservation | `test_ai_provider.py` (3 tests pass) |
 | **Voice** | Wake Word Detection | **Planned** | "Hey EAGLE" activation | Scheduled Milestone 5 |
-| **Intelligence** | AI Provider Interface | **Planned** | Pluggable cloud/local model providers | Scheduled Milestone 4 |
-| **Intelligence** | Structured Tool Calling | **Planned** | Schema generation & validation loop | Scheduled Milestone 4 |
 | **Interface** | PySide6 Desktop GUI | **Planned** | Dark eagle theme, audio visualizer, conversation history | Scheduled Milestone 6 |
 | **Release** | Standalone Packaging | **Planned** | Windows executable distribution | Scheduled Milestone 7 |
+

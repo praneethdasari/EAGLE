@@ -57,6 +57,14 @@ As an AI-powered desktop voice assistant with system automation capabilities, EA
 - Filesystem paths are canonicalized using `Path.resolve()`, resolving all symlinks to their ultimate target before comparing against configured allowed directory roots (`SecurityConfig.allowed_directories`).
 - Symlinks pointing outside permitted boundaries are detected and rejected with `SecurityViolationError`.
 
+### 2.9 AI Provider Safety & Structured Tool Calling Isolation
+- **Tool Allowlist Enforcement**: Model-generated tool call names are strictly validated against `ToolRegistry.has_tool()`. Calls to unapproved or hallucinated tools are immediately rejected with a security error message and never executed.
+- **Pydantic Argument Validation**: LLM-generated JSON tool arguments are parsed and validated strictly through the target tool's Pydantic `parameters_schema`. Malformed, invalid, or extraneous arguments result in rejection.
+- **Confirmation Gate Preserved**: If a tool is flagged as sensitive (`is_sensitive=True`), the orchestrator enforces user confirmation gating before execution, preventing unconfirmed actions even if requested by the AI model.
+- **Bounded Iteration Loop**: Multi-turn tool execution is strictly capped by `AIConfig.max_tool_iterations` (default: 3) to prevent infinite recursive tool invocation loops or token exhaustion attacks.
+- **Credential & Prompt Redaction**: All API keys configured for cloud providers (OpenAI, Groq, Anthropic) are resolved from environment variables where possible and scrubbed from all logging outputs.
+
+
 ---
 
 ## 3. Reporting Vulnerabilities

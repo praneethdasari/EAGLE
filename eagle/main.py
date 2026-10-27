@@ -12,6 +12,7 @@ from eagle.core.events import (
     ToolExecutionRequestedEvent,
 )
 from eagle.core.logging import get_logger, setup_logging
+from eagle.services.ai_provider import AIOrchestrator
 from eagle.services.command_router import CommandIntent, CommandRouter
 from eagle.tools.apps import LaunchAppTool
 from eagle.tools.files import InspectFileTool, ListFilesTool
@@ -89,13 +90,21 @@ def main(args: list[str] | None = None) -> int:
     print(BANNER)
     print(f"Loaded configuration for {config.app_name}. Log level: {log_level}")
 
-    # 3. Initialize EventBus, ToolRegistry, and CommandRouter
+    # 3. Initialize EventBus, ToolRegistry, AIOrchestrator, and CommandRouter
     event_bus = EventBus()
     tool_registry = ToolRegistry(
         confirm_sensitive_actions=config.security.confirm_sensitive_actions
     )
     register_default_tools(tool_registry, config)
-    router = CommandRouter(config=config, tool_registry=tool_registry, event_bus=event_bus)
+    ai_orchestrator = AIOrchestrator(
+        config=config, tool_registry=tool_registry, event_bus=event_bus
+    )
+    router = CommandRouter(
+        config=config,
+        tool_registry=tool_registry,
+        event_bus=event_bus,
+        ai_orchestrator=ai_orchestrator,
+    )
 
     # Wire event feedback
     def on_speech_output(evt: SpeechOutputRequestedEvent) -> None:
@@ -140,15 +149,22 @@ def main(args: list[str] | None = None) -> int:
                     continue
                 route = router.route(user_input)
                 print(f"[Routed Intent]: {route.intent.value} | Matched: {route.matched_rule}")
-                router.dispatch(route)
 
                 if route.intent == CommandIntent.SYSTEM_CONTROL and route.action_name in (
                     "exit",
                     "quit",
                     "goodbye",
                 ):
+                    router.dispatch(route)
                     print("Shutting down EAGLE. Goodbye!")
                     break
+
+                if ai_orchestrator.is_available() and (
+                    route.intent == CommandIntent.CONVERSATION or not route.is_actionable
+                ):
+                    ai_orchestrator.process_query(user_input)
+                else:
+                    router.dispatch(route)
         except (KeyboardInterrupt, EOFError):
             print("\nShutting down EAGLE. Goodbye!")
             return 0

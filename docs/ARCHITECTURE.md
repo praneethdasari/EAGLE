@@ -148,6 +148,18 @@ EAGLE/
 - **Text-to-Speech (`tts.py`)**: Abstract `BaseTTSEngine` providing Windows SAPI5 voice output via `Pyttsx3TTSEngine` with immediate `stop()` speech interruption support and offline `MockTTSEngine`.
 - **Command Router (`command_router.py`)**: Normalizes input speech/text, extracts conversational fillers, classifies intents (`SYSTEM_CONTROL`, `APP_LAUNCH`, `WEB_SEARCH`, `WEB_OPEN`, `SYSTEM_INFO`, `FILE_OPERATION`, `CONVERSATION`), and dispatches events via the `EventBus`.
 
+### 3.7 `eagle.services.ai_provider`
+- **AI Provider Abstraction (`BaseAIProvider`)**: Clean pluggable interface defining `generate_response(messages, tools)` and `is_available()`.
+- **Mock Provider (`MockAIProvider`)**: Deterministic, offline reasoning engine for unit testing, test suites, and CI environments without network access or API fees.
+- **OpenAI-Compatible Client (`OpenAICompatibleProvider`)**: Universal REST client supporting OpenAI, Groq, local Ollama, and OpenAI-compatible endpoints with configurable timeouts, retries, and comprehensive HTTP/network error mapping.
+- **Conversation Context Management (`ConversationManager`)**: Sliding-window context manager enforcing configurable `max_conversation_turns` while permanently preserving the baseline system persona prompt.
+- **AI Orchestrator (`AIOrchestrator`)**:
+  - Dynamically extracts tool schemas from `ToolRegistry` and presents them as standard function definitions.
+  - Coordinates multi-turn tool loops up to `max_tool_iterations` per turn.
+  - Emits `ToolExecutionRequestedEvent`, executes actions safely via `ToolRegistry`, appends structured `role="tool"` results, and summarizes outcomes to the user.
+  - Catches provider errors (`AuthenticationError`, `NetworkTimeoutError`, `RateLimitExceededError`, `ModelUnavailableError`) and emits clear, user-friendly spoken feedback.
+
+
 ---
 
 ## 4. Concurrency & Threading Model

@@ -82,11 +82,13 @@ class CommandRouter:
         config: EagleConfig | None = None,
         tool_registry: ToolRegistry | None = None,
         event_bus: EventBus | None = None,
+        ai_orchestrator: Any | None = None,
     ) -> None:
         self.config = config or EagleConfig()
         self.security_config: SecurityConfig = self.config.security
         self.tool_registry = tool_registry
         self.event_bus = event_bus
+        self.ai_orchestrator = ai_orchestrator
 
         # Wire event bus listeners if provided
         if self.event_bus:
@@ -402,8 +404,18 @@ class CommandRouter:
             return
 
         if route.intent == CommandIntent.CONVERSATION:
-            # Emitted for AI reasoning orchestrator to handle
-            logger.debug("Forwarding conversational command to AI reasoning: '%s'", route.raw_text)
+            if self.ai_orchestrator and self.ai_orchestrator.is_available():
+                logger.debug(
+                    "Forwarding conversational command to AI reasoning: '%s'", route.raw_text
+                )
+                self.ai_orchestrator.process_query(route.raw_text)
+            else:
+                msg = (
+                    "EAGLE AI reasoning is currently unavailable. "
+                    "Supported direct commands (e.g. open notepad, list files, system info) remain active."
+                )
+                self.event_bus.publish(SpeechOutputRequestedEvent(text=msg))
+            return
 
     def process_and_dispatch(self, text: str) -> CommandRoute:
         """Convenience method to route and immediately dispatch a command."""

@@ -84,6 +84,10 @@ class RateLimitExceededError(AIProviderError):
     """Raised when provider rate limits or quotas are hit."""
 
 
+class NetworkTimeoutError(AIProviderError):
+    """Raised when an AI provider request times out."""
+
+
 class InvalidResponseError(AIProviderError):
     """Raised when the AI model returns malformed or unparseable output."""
 
