@@ -200,7 +200,7 @@ This document records completed development tasks, affected files, tests execute
   - `pytest` (117/117 tests passing in 3.70s)
   - `ruff check eagle tests` (All clean)
   - `mypy eagle tests` (Success: no issues found in 39 source files)
-- **Git Commit**: Pending commit & push
+- **Git Commit**: `c4947c5` (`feat(voice): implement wake word detection, continuous listening state machine, and project recovery guide`)
 - **GitHub Push Target**: `origin/main` (`https://github.com/praneethdasari/EAGLE.git`)
 - **Status**: Completed
 
