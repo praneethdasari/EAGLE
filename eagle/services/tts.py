@@ -38,6 +38,7 @@ class MockTTSEngine(BaseTTSEngine):
         self.spoken_phrases: list[str] = []
         self._is_speaking: bool = False
         self._interrupted: bool = False
+        self.stop_called: bool = False
 
     def speak(self, text: str, interruptible: bool = True) -> None:
         if not text.strip():
@@ -49,6 +50,7 @@ class MockTTSEngine(BaseTTSEngine):
         self._is_speaking = False
 
     def stop(self) -> None:
+        self.stop_called = True
         if self._is_speaking:
             self._interrupted = True
             self._is_speaking = False

@@ -46,3 +46,16 @@ This document tracks significant architectural decisions for **EAGLE**.
 - **Context**: Unrestricted shell or script execution poses an unacceptable security risk when driven by AI reasoning.
 - **Decision**: Maintain a strict tool allowlist in `ToolRegistry`. Ban arbitrary shell execution. Restrict filesystem tools to explicitly configured user directories, blocking path traversal (`..`).
 - **Consequences**: Prevents unauthorized modifications, protects system integrity, and satisfies strict security standards.
+
+---
+
+## ADR 006: Continuous Listening State Machine & Offline Wake-Word Detection
+- **Date**: 2026-11-03
+- **Status**: Accepted
+- **Context**: Real-time desktop assistants must continuously monitor microphone input for wake phrases without stalling the main thread, wasting CPU on silent frames, or triggering self-activation while speaking. Furthermore, reliance on proprietary cloud wake-word services violates privacy and introduces network latency.
+- **Decision**:
+  1. Implement a formal, thread-safe state machine (`AssistantState`: `IDLE`, `LISTENING_FOR_WAKE_WORD`, `CAPTURING_COMMAND`, `PROCESSING_COMMAND`, `SPEAKING`, `STOPPING`, `ERROR`) with legal transition validation table (`VALID_TRANSITIONS`) rejecting illegal state shifts.
+  2. Employ zero-numpy `sounddevice.RawInputStream` to capture 16-bit PCM streaming buffers directly into memory.
+  3. Provide a modular wake-word engine suite featuring offline sliding-window energy STT gating, optional `openwakeword` ONNX models, and a deterministic `MockWakeWordEngine` for automated CI testing.
+  4. Implement trailing silence detection, command timeouts, and speech interruption / barge-in cancellation.
+- **Consequences**: Guarantees zero cloud telemetry for keyword detection, prevents race conditions across concurrent audio threads, suppresses self-echo, and enables rapid user interruption.

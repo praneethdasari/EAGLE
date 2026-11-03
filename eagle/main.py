@@ -13,7 +13,12 @@ from eagle.core.events import (
 )
 from eagle.core.logging import get_logger, setup_logging
 from eagle.services.ai_provider import AIOrchestrator
+from eagle.services.audio_capture import AudioCaptureManager
 from eagle.services.command_router import CommandIntent, CommandRouter
+from eagle.services.continuous_listener import AssistantState, ContinuousListener
+from eagle.services.stt import create_stt_engine
+from eagle.services.tts import create_tts_engine
+from eagle.services.wake_word import get_wake_word_engine
 from eagle.tools.apps import LaunchAppTool
 from eagle.tools.files import InspectFileTool, ListFilesTool
 from eagle.tools.registry import ToolRegistry
@@ -91,11 +96,18 @@ def main(args: list[str] | None = None) -> int:
     print(f"Loaded configuration for {config.app_name}. Log level: {log_level}")
 
     # 3. Initialize EventBus, ToolRegistry, AIOrchestrator, and CommandRouter
+    # 3. Initialize EventBus, ToolRegistry, Services, and AIOrchestrator
     event_bus = EventBus()
     tool_registry = ToolRegistry(
         confirm_sensitive_actions=config.security.confirm_sensitive_actions
     )
     register_default_tools(tool_registry, config)
+
+    audio_capture = AudioCaptureManager(config=config.audio, event_bus=event_bus)
+    stt_engine = create_stt_engine(config=config.voice)
+    tts_engine = create_tts_engine(config=config.voice)
+    wake_word_engine = get_wake_word_engine(config=config, stt_engine=stt_engine)
+
     ai_orchestrator = AIOrchestrator(
         config=config, tool_registry=tool_registry, event_bus=event_bus
     )
@@ -103,6 +115,17 @@ def main(args: list[str] | None = None) -> int:
         config=config,
         tool_registry=tool_registry,
         event_bus=event_bus,
+        ai_orchestrator=ai_orchestrator,
+    )
+
+    listener = ContinuousListener(
+        config=config,
+        event_bus=event_bus,
+        audio_capture=audio_capture,
+        wake_word_engine=wake_word_engine,
+        stt_engine=stt_engine,
+        tts_engine=tts_engine,
+        command_router=router,
         ai_orchestrator=ai_orchestrator,
     )
 
@@ -140,13 +163,36 @@ def main(args: list[str] | None = None) -> int:
     event_bus.subscribe(SpeechOutputRequestedEvent, on_speech_output)
     event_bus.subscribe(ToolExecutionRequestedEvent, on_tool_request)
 
+    # Start continuous listening if wake-word detection is enabled in config
+    if config.voice.wake_word_enabled:
+        print(f"Wake word listening enabled ('{config.voice.wake_word_phrase}').")
+        listener.start()
+
     if parsed.cli:
         print("Running in CLI mode. Type 'quit' or 'exit' to stop.")
+        print("Type ':listen' to toggle listening, ':state' to check state.")
         try:
             while True:
                 user_input = input("\nEAGLE> ").strip()
                 if not user_input:
                     continue
+
+                # CLI shortcut commands
+                if user_input in (":listen", ":wake"):
+                    if listener.state == AssistantState.LISTENING_FOR_WAKE_WORD:
+                        listener.stop()
+                        print("[Continuous Listening]: Paused / Stopped.")
+                    else:
+                        listener.start()
+                        print(f"[Continuous Listening]: Started ({listener.state.value}).")
+                    continue
+
+                if user_input in (":state", ":status"):
+                    print(
+                        f"[Assistant State]: {listener.state.value} (Active: {listener.is_active()})"
+                    )
+                    continue
+
                 route = router.route(user_input)
                 print(f"[Routed Intent]: {route.intent.value} | Matched: {route.matched_rule}")
 
@@ -167,7 +213,8 @@ def main(args: list[str] | None = None) -> int:
                     router.dispatch(route)
         except (KeyboardInterrupt, EOFError):
             print("\nShutting down EAGLE. Goodbye!")
-            return 0
+        finally:
+            listener.stop()
     else:
         print("GUI mode selected. (Use --cli for interactive terminal mode).")
         logger.info("EAGLE foundation initialized successfully.")

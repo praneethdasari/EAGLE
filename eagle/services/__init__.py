@@ -24,6 +24,7 @@ from eagle.services.command_router import (
     CommandRouter,
     normalize_command_text,
 )
+from eagle.services.continuous_listener import AssistantState, ContinuousListener
 from eagle.services.stt import (
     BaseSTTEngine,
     FasterWhisperSTT,
@@ -37,8 +38,24 @@ from eagle.services.tts import (
     Pyttsx3TTSEngine,
     create_tts_engine,
 )
+from eagle.services.wake_word import (
+    BaseWakeWordEngine,
+    MockWakeWordEngine,
+    OpenWakeWordEngine,
+    SlidingSTTWakeWordEngine,
+    get_wake_word_engine,
+)
 
 __all__ = [
+    # Continuous Listening & State Machine
+    "AssistantState",
+    "ContinuousListener",
+    # Wake Word Detection
+    "BaseWakeWordEngine",
+    "MockWakeWordEngine",
+    "SlidingSTTWakeWordEngine",
+    "OpenWakeWordEngine",
+    "get_wake_word_engine",
     # AI Reasoning & Tool Calling
     "BaseAIProvider",
     "MockAIProvider",

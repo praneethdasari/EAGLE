@@ -97,6 +97,7 @@ Read the full threat model in [docs/SECURITY.md](docs/SECURITY.md).
 - [Architectural Decisions (ADRs)](docs/DECISIONS.md)
 - [Task Log](docs/TASK_LOG.md)
 - [Milestone Implementation Plan](docs/IMPLEMENTATION_PLAN.md)
+- [Project Recovery Guide](docs/PROJECT_RECOVERY.md)
 - [Persistent Agent Instructions (AGENTS.md)](AGENTS.md)
 
 ---
@@ -121,7 +122,7 @@ EAGLE executes verified desktop automation actions through a sandboxed tool regi
 - **Milestone 1**: Foundation & Testing Infrastructure (Completed)
 - **Milestone 2**: Voice Interaction Subsystem & Command Routing (Completed)
 - **Milestone 3**: Safe Desktop Actions & Automation (Completed)
-- **Milestone 4**: AI Reasoning & Tool Calling Orchestrator (Next)
-- **Milestone 5**: Wake Word Detection & Continuous Listening
-- **Milestone 6**: PySide6 Desktop GUI
-- **Milestone 7**: Release Hardening & Windows Executable Packaging
+- **Milestone 4**: AI Reasoning & Tool Calling Orchestrator (Completed)
+- **Milestone 5**: Wake Word Detection & Continuous Listening (Completed)
+- **Milestone 6**: PySide6 Desktop GUI (In Progress)
+- **Milestone 7**: Release Hardening & Windows Executable Packaging (Planned)

@@ -108,7 +108,22 @@ Maintain and keep synchronized:
 - `docs/SECURITY.md`: Threat model, permissions, data privacy, and safe practices.
 - `docs/FEATURE_STATUS.md`: Truthful checklist of completed, in-progress, and planned features.
 - `docs/DECISIONS.md`: Architectural Decision Records (ADRs).
-- `docs/TASK_LOG.md`: Running log of completed development tasks with commit SHAs.
+- [Task Log](docs/TASK_LOG.md): Running log of completed development tasks with commit SHAs.
 - `docs/IMPLEMENTATION_PLAN.md`: Milestone roadmap and progress tracking.
+- `docs/PROJECT_RECOVERY.md`: Instructions for restoring and continuing the project from GitHub.
+
+---
+
+## 8. Continuous GitHub Synchronization & Project Recovery
+
+1. **GitHub is the Recovery Source of Truth**:
+   - The remote repository at `https://github.com/praneethdasari/EAGLE.git` is the permanent recovery point.
+   - Never leave completed development work existing only on the local machine when remote synchronization is available.
+   - Never force-push or overwrite remote history.
+   - Verify every push with `git branch -vv` or `git status`.
+2. **Development Checkpoints in `docs/PROJECT_RECOVERY.md`**:
+   - At the conclusion of each development session, update `docs/PROJECT_RECOVERY.md` with a development checkpoint documenting current commit SHA, files modified, features completed, tests passed, and next recommended task.
+3. **Recovery After Total Data Loss**:
+   - In case of local environment loss, clone GitHub repo, activate `.venv`, run `pytest`, consult `docs/PROJECT_RECOVERY.md`, and resume directly from the latest verified checkpoint without needing previous conversation transcripts.
 
 When conventions or architectures evolve, update this `AGENTS.md` file immediately.

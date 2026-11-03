@@ -144,3 +144,63 @@ This document records completed development tasks, affected files, tests execute
 - **GitHub Push Target**: `origin/main` (`https://github.com/praneethdasari/EAGLE.git`)
 - **Status**: Completed
 
+---
+
+## Task 005: Wake Word Detection, Continuous Listening State Machine & Project Recovery Guide (Milestone 5)
+- **Date**: 2026-11-03
+- **Architect/Engineer**: Google Antigravity (Lead Architect & Senior Developer)
+- **Objective**: Implement modular wake-word detection subsystem (`BaseWakeWordEngine`, `MockWakeWordEngine`, `SlidingSTTWakeWordEngine`, `OpenWakeWordEngine`), thread-safe continuous listening coordinator and assistant state machine (`AssistantState`, `ContinuousListener`), zero-numpy streaming audio capture via `RawInputStream`, trailing silence detection, speech interruption, CLI controls (`:listen`, `:state`), comprehensive unit tests, and the definitive project recovery guide (`docs/PROJECT_RECOVERY.md`).
+- **Feature Name and Purpose**:
+  - Wake-word detection: local, offline keyword activation ("Hey EAGLE" / configurable phrase).
+  - Continuous listening state machine: thread-safe lifecycle coordinator managing audio capture, speech transitions, trailing silence detection, command timeouts, and speech barge-in cancellation.
+  - Project recovery & continuity: standardized repository restoration procedures eliminating dependence on prior conversation transcripts.
+- **Implementation Status**: Completed (100% verified with automated tests)
+- **Exact Source Code File Paths**:
+  - `eagle/core/config.py`: Added wake-word engine options, continuous listening flags, `VoiceConfig = AudioConfig` alias, and `voice` accessor on `EagleConfig`.
+  - `eagle/core/events.py`: Added `WakeWordDetectedEvent`, `ListeningStateChangedEvent`, `AudioCaptureStartedEvent`, `AudioCaptureStoppedEvent`.
+  - `eagle/core/exceptions.py`: Added `StateMachineError`, `InvalidStateTransitionError`, and `WakeWordUnavailableError`.
+  - `eagle/services/audio_capture.py`: Added `RawInputStream` direct CFFI buffer handling, streaming chunk callbacks, buffer draining, and RMS amplitude broadcasting.
+  - `eagle/services/stt.py`: Added `preset_text` parameter to `MockSTTEngine`.
+  - `eagle/services/tts.py`: Added `stop_called` tracking to `MockTTSEngine`.
+  - `eagle/services/wake_word.py`: Implemented `BaseWakeWordEngine`, `MockWakeWordEngine`, `SlidingSTTWakeWordEngine`, `OpenWakeWordEngine`, and `get_wake_word_engine` factory.
+  - `eagle/services/continuous_listener.py`: Implemented `AssistantState` (`StrEnum`), legal transition matrix `VALID_TRANSITIONS`, `ContinuousListener` coordinator, command worker queue, trailing silence detection, and speech interruption.
+  - `eagle/services/__init__.py`: Exported continuous listening and wake word classes.
+  - `eagle/main.py`: Initialized `ContinuousListener`, wired `:listen` toggle, `:state` diagnostic, and clean shutdown hooks.
+  - `pyproject.toml`: Added mypy overrides for `openwakeword.*` and `numpy`.
+  - `tests/unit/test_wake_word.py`: 8 unit tests covering all wake word engines, silence gating, vocal energy detection, and missing module fallbacks.
+  - `tests/unit/test_continuous_listener.py`: 11 unit tests covering state machine transitions, event publishing, lifecycle start/stop, self-speech suppression, barge-in interruption, and command timeout processing.
+  - `docs/PROJECT_RECOVERY.md`: Comprehensive independent recovery guide and development checkpoint.
+- **Dependencies & Configuration Requirements**:
+  - `sounddevice` for audio stream capture.
+  - Optional: `openwakeword` for ONNX-based wake-word inference; defaults gracefully to local sliding STT.
+  - Configuration via `EagleConfig.audio` / `EagleConfig.voice`.
+- **How the Feature Interacts With Other Modules**:
+  - `ContinuousListener` receives streaming audio from `AudioCaptureManager`.
+  - On wake word detection, transitions state from `LISTENING_FOR_WAKE_WORD` to `CAPTURING_COMMAND`.
+  - Transcribes voice command via `BaseSTTEngine` (`FasterWhisperSTT` or `MockSTTEngine`).
+  - Routes intent via `CommandRouter` and executes tools or invokes `AIOrchestrator`.
+  - Vocalizes responses via `BaseTTSEngine` (`Pyttsx3TTSEngine`), listening for interruptions to stop speech immediately.
+  - Emits real-time state changes and audio levels over `EventBus`.
+- **Tests Covering the Feature**:
+  - `tests/unit/test_wake_word.py` (8 tests)
+  - `tests/unit/test_continuous_listener.py` (11 tests)
+  - Total test suite: 117 tests passing in ~3.7s.
+- **Commands Required to Run and Verify It**:
+  - Tests: `.\.venv\Scripts\pytest.exe`
+  - Lint: `.\.venv\Scripts\ruff.exe check eagle tests`
+  - Format: `.\.venv\Scripts\ruff.exe format --check eagle tests`
+  - Type Check: `.\.venv\Scripts\mypy.exe eagle tests`
+  - CLI: `.\.venv\Scripts\python.exe -m eagle.main --cli` (use `:listen` to toggle listening)
+- **Known Limitations & Outstanding Issues**:
+  - Physical wake-word detection requires a working microphone; unit tests run entirely offline with mock audio.
+  - Default wake word engine uses local sliding STT; `openwakeword` is optional.
+- **Next Logical Development Task**:
+  - Milestone 6: PySide6 Desktop GUI (`eagle/ui/`) with dark eagle theme, dynamic audio visualizer widget, and conversation history cards.
+- **Tests Executed**:
+  - `pytest` (117/117 tests passing in 3.70s)
+  - `ruff check eagle tests` (All clean)
+  - `mypy eagle tests` (Success: no issues found in 39 source files)
+- **Git Commit**: Pending commit & push
+- **GitHub Push Target**: `origin/main` (`https://github.com/praneethdasari/EAGLE.git`)
+- **Status**: Completed
+

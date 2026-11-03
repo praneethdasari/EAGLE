@@ -48,8 +48,10 @@ class BaseSTTEngine(ABC):
 class MockSTTEngine(BaseSTTEngine):
     """Deterministic mock STT engine for unit testing and offline environments."""
 
-    def __init__(self, default_response: str = "Hello EAGLE") -> None:
-        self.default_response = default_response
+    def __init__(
+        self, default_response: str = "Hello EAGLE", preset_text: str | None = None
+    ) -> None:
+        self.default_response = preset_text if preset_text is not None else default_response
         self._queued_responses: list[str] = []
         self._call_count = 0
 

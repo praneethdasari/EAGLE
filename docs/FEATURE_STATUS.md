@@ -23,7 +23,8 @@ This document maintains a truthful, verified status of all EAGLE capabilities. F
 | **Intelligence** | AI Provider Interface | **Completed** | Modular AI provider (`BaseAIProvider`, `OpenAICompatibleProvider`, `MockAIProvider`) supporting OpenAI, Groq, and Ollama | `test_ai_provider.py` (7 tests pass) |
 | **Intelligence** | Structured Tool Calling | **Completed** | Dynamic JSON schema generation from `ToolRegistry`, multi-turn execution loop, security allowlist enforcement | `test_ai_provider.py` (6 tests pass) |
 | **Intelligence** | Conversation Memory & Context | **Completed** | Sliding-window context management, turn budgeting, baseline system persona preservation | `test_ai_provider.py` (3 tests pass) |
-| **Voice** | Wake Word Detection | **Planned** | "Hey EAGLE" activation | Scheduled Milestone 5 |
+| **Voice** | Wake Word Detection | **Completed** | Sliding STT energy gating, openWakeWord ONNX, and MockWakeWordEngine | `test_wake_word.py` (8 tests pass) |
+| **Voice** | Continuous Listening & State Machine | **Completed** | Thread-safe coordinator, legal state validation, trailing silence detection, speech barge-in interruption | `test_continuous_listener.py` (11 tests pass) |
 | **Interface** | PySide6 Desktop GUI | **Planned** | Dark eagle theme, audio visualizer, conversation history | Scheduled Milestone 6 |
 | **Release** | Standalone Packaging | **Planned** | Windows executable distribution | Scheduled Milestone 7 |
 

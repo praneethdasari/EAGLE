@@ -104,6 +104,37 @@ class SpeechOutputFinishedEvent(Event):
 
 
 @dataclass(kw_only=True)
+class WakeWordDetectedEvent(Event):
+    """Fired when the assistant wake phrase (e.g. 'Hey EAGLE') is detected."""
+
+    wake_phrase: str
+    confidence: float = 1.0
+
+
+@dataclass(kw_only=True)
+class ListeningStateChangedEvent(Event):
+    """Fired when continuous listening state transitions."""
+
+    old_state: str
+    new_state: str
+    reason: str = ""
+
+
+@dataclass(kw_only=True)
+class AudioCaptureStartedEvent(Event):
+    """Fired when audio recording stream starts."""
+
+    mode: str = "command"  # "wake_word" or "command"
+
+
+@dataclass(kw_only=True)
+class AudioCaptureStoppedEvent(Event):
+    """Fired when audio recording stream stops."""
+
+    frames_captured: int = 0
+
+
+@dataclass(kw_only=True)
 class ErrorOccurredEvent(Event):
     """Fired when an unhandled error or subsystem warning occurs."""
 
@@ -113,6 +144,7 @@ class ErrorOccurredEvent(Event):
 
 
 E = TypeVar("E", bound=Event)
+
 EventHandler = Callable[[Any], None]
 
 

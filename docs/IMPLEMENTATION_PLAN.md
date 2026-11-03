@@ -56,9 +56,9 @@ This roadmap tracks the development lifecycle of **EAGLE** (Enhanced Autonomous 
 ---
 
 ## Milestone 5: Wake Word Detection & Continuous Listening
-- [ ] **5.1** Wake word listener interface ("Hey EAGLE" / configurable phrase).
-- [ ] **5.2** State management: Idle, Listening, Processing, Speaking, Interrupted.
-- [ ] **5.3** Clean cancellation of ongoing speech or actions on user interruption.
+- [x] **5.1** Wake word listener interface ("Hey EAGLE" / configurable phrase).
+- [x] **5.2** State management: Idle, Listening, Processing, Speaking, Interrupted.
+- [x] **5.3** Clean cancellation of ongoing speech or actions on user interruption.
 
 ---
 

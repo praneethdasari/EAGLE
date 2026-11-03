@@ -119,3 +119,20 @@ class SecurityViolationError(ToolError):
 
 class PermissionDeniedError(ToolError):
     """Raised when an operation is cancelled or rejected by user confirmation."""
+
+
+# =====================================================================
+# State Machine & Wake Word Exceptions
+# =====================================================================
+
+
+class StateMachineError(EagleError):
+    """Base class for assistant state machine errors."""
+
+
+class InvalidStateTransitionError(StateMachineError):
+    """Raised when an illegal or unsupported state transition is attempted."""
+
+
+class WakeWordUnavailableError(WakeWordError):
+    """Raised when the requested wake word detection engine or model is unavailable."""

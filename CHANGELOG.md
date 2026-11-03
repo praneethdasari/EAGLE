@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.0] - 2026-11-03
+
+### Added
+- **Wake Word Detection Subsystem (`eagle.services.wake_word`)**:
+  - `BaseWakeWordEngine`: Clean abstract interface for streaming audio chunk evaluation, availability detection, and state resets.
+  - `SlidingSTTWakeWordEngine`: Completely local, offline keyword detection combining vocal RMS energy gating with sliding-window speech recognition and cooldown debounce.
+  - `OpenWakeWordEngine`: Optional integration for openWakeWord ONNX acoustic models, with safe fallback to sliding STT when optional dependencies are omitted.
+  - `MockWakeWordEngine`: Deterministic test engine supporting programmatic triggers, frame-count triggers, and simulated trigger bytes.
+  - `get_wake_word_engine`: Configuration-driven factory selecting the appropriate engine based on `EagleConfig`.
+- **Continuous Listening & State Machine Coordinator (`eagle.services.continuous_listener`)**:
+  - `AssistantState` (`StrEnum`): Explicit state machine with 7 states: `IDLE`, `LISTENING_FOR_WAKE_WORD`, `CAPTURING_COMMAND`, `PROCESSING_COMMAND`, `SPEAKING`, `STOPPING`, and `ERROR`.
+  - `VALID_TRANSITIONS`: Strict transition table enforcing legal lifecycle paths and raising `InvalidStateTransitionError` on illegal transitions.
+  - `ContinuousListener`: Thread-safe coordinator running a dedicated background command worker thread (`EAGLE-CommandWorker`), trailing silence detection, maximum command duration timeout, self-speech echo suppression, and barge-in speech interruption.
+  - Real-time event broadcasting: `WakeWordDetectedEvent`, `ListeningStateChangedEvent`, `AudioCaptureStartedEvent`, and `AudioCaptureStoppedEvent`.
+- **Streaming Audio Capture Improvements (`eagle.services.audio_capture`)**:
+  - Migrated stream creation to `sounddevice.RawInputStream` consuming raw 16-bit PCM CFFI buffers directly, eliminating hard dependencies on numpy.
+  - Added real-time chunk callbacks, buffer draining (`drain_buffer_wav()`), and thread-safe buffer clearing.
+- **CLI Commands & Diagnostics (`eagle.main`)**:
+  - Added `:listen` command to toggle continuous listening with wake-word detection in CLI mode.
+  - Added `:state` and `:status` commands to inspect live assistant state machine status.
+- **Project Continuity & Recovery Guide (`docs/PROJECT_RECOVERY.md`)**:
+  - Standardized recovery procedures for cloning, virtual environment creation, configuration, running, test execution, troubleshooting, and total data loss recovery.
+  - Permanent development checkpoint recording verified commit state, features completed, and next tasks.
+- **Unit Test Suite Expansion**: Added 19 unit tests across `tests/unit/test_wake_word.py` (8 tests) and `tests/unit/test_continuous_listener.py` (11 tests), bringing the total test suite to 117 passing tests (100% pass rate).
+
+---
+
 ## [0.4.0] - 2026-10-27
 
 ### Added

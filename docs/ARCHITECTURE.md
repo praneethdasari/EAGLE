@@ -160,10 +160,25 @@ EAGLE/
   - Catches provider errors (`AuthenticationError`, `NetworkTimeoutError`, `RateLimitExceededError`, `ModelUnavailableError`) and emits clear, user-friendly spoken feedback.
 
 
+### 3.8 `eagle.services.wake_word` & `eagle.services.continuous_listener`
+- **Wake Word Engines (`eagle/services/wake_word.py`)**:
+  - `BaseWakeWordEngine`: Core interface for streaming chunk evaluation (`process_audio(pcm_data)`), readiness check, and buffer reset.
+  - `SlidingSTTWakeWordEngine`: Completely local, offline keyword detection combining vocal RMS energy gating with sliding-window speech-to-text recognition and cooldown debounce.
+  - `OpenWakeWordEngine`: Optional integration with ONNX-based openWakeWord models; automatically falls back to sliding STT if optional dependencies are omitted.
+  - `MockWakeWordEngine`: Deterministic test engine supporting programmatic, frame-count, and synthetic keyword triggers for automated test suites.
+  - `get_wake_word_engine()`: Configuration-driven factory returning the appropriate engine based on `EagleConfig`.
+- **Continuous Listening & State Machine (`eagle/services/continuous_listener.py`)**:
+  - `AssistantState`: Explicit state enumeration (`IDLE`, `LISTENING_FOR_WAKE_WORD`, `CAPTURING_COMMAND`, `PROCESSING_COMMAND`, `SPEAKING`, `STOPPING`, `ERROR`).
+  - `VALID_TRANSITIONS`: Strict transition table; illegal state shifts raise `InvalidStateTransitionError`.
+  - `ContinuousListener`: Thread-safe coordinator running background command worker queue, detecting trailing silence and maximum command duration timeouts, suppressing self-speech, and interrupting TTS on user barge-in.
+  - Broadcasts `WakeWordDetectedEvent`, `ListeningStateChangedEvent`, `AudioCaptureStartedEvent`, and `AudioCaptureStoppedEvent` across the `EventBus`.
+
 ---
 
 ## 4. Concurrency & Threading Model
 
-- **Main Thread**: Runs the PySide6 Qt event loop, rendering UI widgets and responding to user gestures.
-- **Audio Worker Thread**: Captures microphone chunks via `sounddevice`, performs Voice Activity Detection (VAD), and triggers STT.
-- **Orchestrator Worker Thread**: Handles async network requests to AI providers and invokes approved tools, emitting updates back to the UI via Qt Signals / Thread-safe EventBus.
+- **Main Thread**: Runs the PySide6 Qt event loop or interactive CLI input loop, handling user gestures and keyboard commands.
+- **Microphone Stream Thread**: Background audio callback managed by `sounddevice.RawInputStream`, streaming raw 16-bit PCM chunks into `AudioCaptureManager` without memory copying or numpy requirements.
+- **Command Worker Thread (`EAGLE-CommandWorker`)**: Background worker thread managed by `ContinuousListener`, consuming audio command bytes from a thread-safe queue to perform STT transcription, command routing, and AI reasoning without blocking audio capture.
+- **TTS Playback Worker Thread**: Dedicated speech synthesis thread allowing immediate `stop()` interruption when a barge-in event occurs.
+- **Event Bus Decoupling**: All inter-thread state and data communication flows asynchronously through the thread-safe `EventBus`.

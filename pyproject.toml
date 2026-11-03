@@ -82,5 +82,7 @@ module = [
     "sounddevice",
     "pyttsx3",
     "faster_whisper",
+    "openwakeword.*",
+    "numpy",
 ]
 ignore_missing_imports = true

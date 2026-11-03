@@ -6,6 +6,7 @@ import struct
 import threading
 import time
 import wave
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
@@ -99,13 +100,38 @@ class AudioCaptureManager:
         self._audio_buffer = bytearray()
         self._lock = threading.Lock()
         self._stream: Any = None
+        self._chunk_callback: Callable[[bytes], None] | None = None
 
-    def start_recording(self) -> None:
-        """Begin audio capture from configured microphone."""
+    def set_chunk_callback(self, callback: Callable[[bytes], None] | None) -> None:
+        """Set or update the real-time audio chunk callback."""
+        with self._lock:
+            self._chunk_callback = callback
+
+    def clear_buffer(self) -> None:
+        """Clear recorded audio buffer without interrupting active stream."""
+        with self._lock:
+            self._audio_buffer.clear()
+
+    def drain_buffer_wav(self) -> bytes:
+        """Extract and clear accumulated buffer as WAV bytes while stream keeps running."""
+        with self._lock:
+            pcm_bytes = bytes(self._audio_buffer)
+            self._audio_buffer.clear()
+        return pcm_to_wav_bytes(pcm_bytes, self.sample_rate, self.channels)
+
+    def start_recording(self, chunk_callback: Callable[[bytes], None] | None = None) -> None:
+        """Begin audio capture from configured microphone.
+
+        Args:
+            chunk_callback: Optional callable receiving raw 16-bit PCM bytes for each audio chunk.
+        """
         with self._lock:
             if self._is_recording:
+                if chunk_callback is not None:
+                    self._chunk_callback = chunk_callback
                 return
             self._audio_buffer.clear()
+            self._chunk_callback = chunk_callback
             self._is_recording = True
 
         try:
@@ -117,21 +143,31 @@ class AudioCaptureManager:
                 if not self._is_recording:
                     return
 
-                # Convert float32 or int16 numpy array to 16-bit PCM bytes
-                if indata.dtype == "float32":
+                # Convert buffer, float32, or int16 array to 16-bit PCM bytes
+                if hasattr(indata, "tobytes"):
+                    pcm_chunk = indata.tobytes()
+                elif hasattr(indata, "dtype") and indata.dtype == "float32":
                     pcm_chunk = (indata * 32767.0).astype("int16").tobytes()
                 else:
-                    pcm_chunk = indata.tobytes()
+                    pcm_chunk = bytes(indata)
 
                 with self._lock:
                     self._audio_buffer.extend(pcm_chunk)
+                    cb = self._chunk_callback
+
+                if cb:
+                    try:
+                        cb(pcm_chunk)
+                    except Exception as cb_exc:
+                        logger.debug("Error in audio chunk callback: %s", cb_exc)
 
                 # Report audio amplitude to EventBus for UI visualizer
                 if self.event_bus:
                     amp = calculate_rms_amplitude(pcm_chunk)
                     self.event_bus.publish(AudioLevelEvent(amplitude=amp))
 
-            self._stream = sd.InputStream(
+            stream_cls = getattr(sd, "RawInputStream", sd.InputStream)
+            self._stream = stream_cls(
                 samplerate=self.sample_rate,
                 channels=self.channels,
                 device=self.device_index,
@@ -158,6 +194,7 @@ class AudioCaptureManager:
         """Stop microphone capture and return recorded audio as WAV bytes."""
         with self._lock:
             self._is_recording = False
+            self._chunk_callback = None
 
         if self._stream:
             try:
@@ -190,6 +227,13 @@ class AudioCaptureManager:
         with self._lock:
             if self._is_recording:
                 self._audio_buffer.extend(pcm_chunk)
+            cb = self._chunk_callback
+
+        if cb and self._is_recording:
+            try:
+                cb(pcm_chunk)
+            except Exception as cb_exc:
+                logger.debug("Error in simulated audio chunk callback: %s", cb_exc)
 
         if self.event_bus:
             amp = calculate_rms_amplitude(pcm_chunk)
