@@ -213,8 +213,8 @@ All four commands MUST exit with status 0 before pushing changes to GitHub.
 | **Milestone 3** | Desktop Automation Tools | **Completed** | Apps, web search/open, sandboxed files, system info |
 | **Milestone 4** | AI Reasoning Engine | **Completed** | BaseAIProvider, OpenAI-compatible client, tool calling loop, memory manager |
 | **Milestone 5** | Wake Word & Continuous Listening | **Completed** | Sliding STT / openWakeWord, AssistantState machine, interruption, ContinuousListener |
-| **Milestone 6** | PySide6 Desktop GUI | **In Progress** | Dark eagle theme, audio visualizer, conversation history feed, status indicators |
-| **Milestone 7** | Packaging & Distribution | **Planned** | PyInstaller build, Windows executable distribution |
+| **Milestone 6** | PySide6 Desktop GUI | **Completed** | Dark eagle theme, audio visualizer, conversation history feed, status indicators |
+| **Milestone 7** | Packaging & Distribution | **Completed** | PyInstaller onedir distribution, isolated paths, build automation, checksum verification |
 
 ---
 
@@ -257,31 +257,28 @@ If the local project directory is deleted or corrupted:
 This checkpoint represents the verified state at the conclusion of the latest development session:
 
 - **Session Date**: 2026-11-05
-- **Last Completed Task**: Task 006 — Polished EAGLE Desktop Interface (PySide6) (Milestone 6)
-- **Current Git Branch**: `main`
-- **Configured Remote**: `origin` -> `https://github.com/praneethdasari/EAGLE.git`
-- **Latest Verified Commit Hash**: `5a4a3ae`
-- **Latest Synchronized GitHub Commit**: `5a4a3ae`
+- **Last Completed Task**: Task 007 — Windows 11 Packaging & Release Hardening (Milestone 7 / v0.1.0)
+- **Current Git Branch**: main
+- **Configured Remote**: origin -> https://github.com/praneethdasari/EAGLE.git
+- **Release Version**: 0.1.0 (First Production Release)
 - **Features Completed in Session**:
-  - Custom dark eagle-themed PySide6 desktop interface (`eagle/ui/theme.py`)
-  - Dynamic 32-bar audio reactive visualizer widget (`eagle/ui/visualizer.py`)
-  - Pulsing microphone state indicator badge (`eagle/ui/visualizer.py`)
-  - Conversation history feed with user/assistant bubbles and structured `ToolExecutionCard` widgets (`eagle/ui/conversation.py`)
-  - Real-time system telemetry sidebar panel (`eagle/ui/status_panel.py`)
-  - Fallback typed input bar with send button and microphone toggle (`eagle/ui/input_bar.py`)
-  - Multi-tab preferences modal dialog with JSON persistence (`eagle/ui/settings_dialog.py`)
-  - Thread-safe `EventBusQtBridge` decoupling background workers from Qt widgets (`eagle/ui/bridge.py`)
-  - Desktop `MainWindow` orchestrating application lifecycle and shutdown hooks (`eagle/ui/main_window.py`)
-  - Automated headless offscreen UI test suite with session-scoped `qapp` (`tests/unit/test_ui.py`)
+  - Standalone Windows 11 executable build configured with PyInstaller (eagle.spec).
+  - Onedir collection architecture (COLLECT) with native GUI subsystem (console=False).
+  - Isolated paths architecture (eagle.core.paths): User config (%APPDATA%\EAGLE), logs (%APPDATA%\EAGLE\logs), and model cache (%LOCALAPPDATA%\EAGLE).
+  - Automated build script (scripts/build_windows.py) with quality gates and SHA-256 hash generation (dist/SHA256SUMS.txt).
+  - 5 comprehensive end-to-end integration tests (	ests/integration/test_end_to_end.py) verifying voice-to-tool, continuous listening, AI tool calling, security sandboxing, and PySide6 UI synchronization.
+  - Complete documentation suite: docs/BUILD_GUIDE.md, docs/INSTALLATION_GUIDE.md, and docs/RELEASE_CHECKLIST.md.
 - **Features In Progress**:
-  - Milestone 7: Packaging & Release Hardening (PyInstaller build configuration, end-to-end integration validation, v0.1.0 release notes)
+  - None (Milestones 0–7 fully implemented, tested, and packaged).
 - **Outstanding Errors & Blockers**:
   - None. 0 errors, 0 blockers.
 - **Tests Executed & Results**:
-  - `pytest`: 128/128 tests passing (100% pass rate in ~4.3s)
-  - `ruff check eagle tests`: Clean (0 errors)
-  - `ruff format --check eagle tests`: Clean (0 formatting issues across 48 files)
-  - `mypy eagle tests`: Clean (Success: no issues found in 48 source files)
+  - pytest: 133/133 tests passing (100% pass rate in ~4.8s across 15 test modules)
+  - 
+uff check eagle tests scripts: Clean (0 errors)
+  - 
+uff format eagle tests scripts: Clean (52 files checked)
+  - mypy eagle tests scripts: Clean (Success: no issues found in 52 source files)
+  - PyInstaller Standalone Build: dist/EAGLE/EAGLE.exe verified (SHA-256: 183e169457f5dda39fecd73b772e959a9f4c87174442288f590cbdb29bc7264a)
 - **Next Recommended Task**:
-  - Milestone 7: Implement PyInstaller packaging configuration, execute Windows 11 executable build, perform end-to-end integration review, and tag v0.1.0.
-  - Milestone 6: PySide6 Desktop User Interface implementation (`eagle/ui/`).
+  - Post-v0.1.0 Roadmap: Multi-modal vision/screen perception (OCR, UI analysis) and extended third-party tool integrations.

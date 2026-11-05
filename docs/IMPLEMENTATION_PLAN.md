@@ -73,6 +73,21 @@ This roadmap tracks the development lifecycle of **EAGLE** (Enhanced Autonomous 
 ---
 
 ## Milestone 7: Hardening, Packaging & Release
-- [ ] **7.1** End-to-end integration testing and security review.
-- [ ] **7.2** PyInstaller / Windows executable build configuration.
-- [ ] **7.3** User documentation, demo guide, and v0.1.0 release tag.
+- [x] **7.1** End-to-end integration testing and security review:
+  - Full voice command to allowlisted tool to speech synthesis loop (	est_e2e_voice_command_to_tool_execution).
+  - Wake-word triggering, streaming chunk capture, silence detection, and barge-in speech interruption (	est_e2e_wake_word_and_continuous_listening_lifecycle).
+  - AI orchestrator multi-turn conversational reasoning and tool calling (	est_e2e_ai_conversational_reasoning_and_tool_calling).
+  - Sandboxed directory containment and unauthorized application execution blocking (	est_e2e_security_sandbox_enforcement).
+  - PySide6 UI EventBus integration, visualizer response, and history card rendering (	est_e2e_pyside6_main_window_integration).
+- [x] **7.2** PyInstaller / Windows executable build configuration:
+  - eagle.spec configured in onedir collection mode (COLLECT) with windowed GUI subsystem (console=False).
+  - Explicit hidden imports for PySide6, sounddevice CFFI, pyttsx3 SAPI5, pydantic, psutil.
+  - Development tools and testing libraries excluded (pytest, mypy, 
+uff, 	kinter).
+  - User configuration and logs externalized to %APPDATA%\EAGLE and %LOCALAPPDATA%\EAGLE via eagle.core.paths.
+  - Automated build script (scripts/build_windows.py) with test/lint/type quality gates, executable compilation, and SHA-256 checksum generation (dist/SHA256SUMS.txt).
+- [x] **7.3** User documentation, installation guide, and v0.1.0 release tag:
+  - Authored comprehensive docs/BUILD_GUIDE.md.
+  - Authored Windows 11 docs/INSTALLATION_GUIDE.md.
+  - Authored release audit docs/RELEASE_CHECKLIST.md.
+  - Synchronized and verified all project documentation for v0.1.0 release.

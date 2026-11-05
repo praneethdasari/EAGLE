@@ -261,3 +261,57 @@ This document records completed development tasks, affected files, tests execute
 - **GitHub Push Target**: `origin/main` (`https://github.com/praneethdasari/EAGLE.git`)
 - **Status**: Completed
 
+
+---
+
+## Task 007: Windows 11 Packaging & Release Hardening (Milestone 7 / v0.1.0)
+- **Date**: 2026-11-05
+- **Architect/Engineer**: Google Antigravity (Lead Architect, Release Engineer & QA)
+- **Objective**: Finalize EAGLE v0.1.0 for production Windows 11 release by implementing a robust PyInstaller packaging architecture, user data and path isolation, a 5-scenario end-to-end integration test suite, automated build script, SHA-256 release checksums, complete user installation and build guides, and release hardening verification.
+- **Feature Name and Purpose**:
+  - Windows 11 PyInstaller Packaging: Standalone, relocatable directory distribution (dist/EAGLE/) that launches natively with sub-second startup and without external Python or compiler dependencies.
+  - Path & Data Isolation (eagle.core.paths): Automatically isolates user configuration to %APPDATA%\EAGLE\config.json, logs to %APPDATA%\EAGLE\logs\eagle.log, and model caches to %LOCALAPPDATA%\EAGLE\models\, ensuring application updates never overwrite user settings.
+  - End-to-End Integration Suite (	ests/integration/test_end_to_end.py): Full-stack pipeline tests validating voice command routing, tool execution, wake-word state machine transitions, AI tool calling, security sandboxing, and PySide6 UI synchronization.
+  - Build Automation (scripts/build_windows.py): Enforces automated test passing, linting, and static typing quality gates before building the executable and calculating SHA-256 checksums (dist/SHA256SUMS.txt).
+- **Implementation Status**: Completed (100% verified with automated tests and real build compilation)
+- **Exact Source Code File Paths**:
+  - eagle.spec: PyInstaller specification configured in onedir mode (COLLECT) with windowed GUI subsystem (console=False).
+  - eagle/core/paths.py: Runtime path resolution, is_frozen() bundle detection, user data, cache, and log directory resolvers.
+  - eagle/core/__init__.py: Exported path resolution functions.
+  - scripts/build_windows.py: Automated build runner with quality gates, compilation, and SHA-256 hash calculation.
+  - 	ests/integration/test_end_to_end.py: 5 comprehensive integration tests verifying the full application lifecycle.
+  - docs/BUILD_GUIDE.md: Developer and release packaging guide.
+  - docs/INSTALLATION_GUIDE.md: User-facing Windows 11 setup and operations guide.
+  - docs/RELEASE_CHECKLIST.md: Formal verification checklist for release readiness.
+- **Dependencies & Configuration Requirements**:
+  - pyinstaller>=6.0.0
+  - PySide6>=6.7.0
+  - Windows SAPI5 audio drivers (native to Windows 11)
+  - Isolated virtual environment (.venv)
+- **How the Feature Interacts With Other Modules**:
+  - eagle.core.paths is invoked throughout core, UI, and logging to cleanly route configuration and logs outside the executable directory.
+  - eagle.spec bundles all necessary Python libraries and CFFI dynamic link libraries required by sounddevice, pyttsx3, and PySide6.
+  - scripts/build_windows.py orchestrates pytest, ruff, mypy, and PyInstaller in sequence.
+- **Tests Covering the Feature**:
+  - 	ests/integration/test_end_to_end.py (5 integration tests)
+  - Total test suite: 133 tests passing (128 unit + 5 integration).
+- **Commands Required to Run and Verify It**:
+  - Tests: .\.venv\Scripts\pytest.exe
+  - Lint: .\.venv\Scripts\ruff.exe check eagle tests scripts
+  - Format: .\.venv\Scripts\ruff.exe format eagle tests scripts
+  - Type Check: .\.venv\Scripts\mypy.exe eagle tests scripts
+  - Build Executable: .\.venv\Scripts\python.exe scripts/build_windows.py
+  - Launch Binary: .\dist\EAGLE\EAGLE.exe
+- **Known Limitations & Outstanding Issues**:
+  - None. Executable compiles to 6.48 MB launcher in a ~190 MB directory with zero external prerequisites.
+- **Next Logical Development Task**:
+  - v0.2.0: Multi-modal screen perception (OCR / screenshot analysis) and expanded plugin tool ecosystem.
+- **Tests Executed**:
+  - pytest (133/133 tests passing in 4.83s)
+  - 
+uff check eagle tests scripts (All clean)
+  - mypy eagle tests scripts (Success: no issues found in 52 source files)
+  - PyInstaller Build (dist/EAGLE/EAGLE.exe verified, SHA-256: 183e169457f5dda39fecd73b772e959a9f4c87174442288f590cbdb29bc7264a)
+- **Git Commit**: (Pending v0.1.0 release commit)
+- **GitHub Push Target**: origin/main & tag 0.1.0 (https://github.com/praneethdasari/EAGLE.git)
+- **Status**: Completed

@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.7.0] / [0.1.0] - 2026-11-05
+
+### Added
+- **Windows Packaging & PyInstaller Build Subsystem**:
+  - eagle.spec: Optimized PyInstaller specification configured in onedir collection mode (COLLECT) with windowed subsystem (console=False) for zero-terminal desktop startup.
+  - Bundled hidden imports for PySide6 core and GUI components, sounddevice CFFI backend, pyttsx3 Windows SAPI5 drivers, pydantic v2, and psutil.
+  - Excluded test and development dependencies (pytest, mypy, 
+uff, 	kinter) minimizing release bundle footprint.
+  - scripts/build_windows.py: End-to-end automated build pipeline with unit test, linting, type-checking quality gates, compilation, output validation, and SHA-256 checksum generation (dist/SHA256SUMS.txt).
+- **Filesystem Paths & User Data Isolation (eagle.core.paths)**:
+  - is_frozen(): Runtime detection of PyInstaller bundled execution mode vs. development source tree.
+  - get_app_root(): Transparently resolves bundled application assets from sys._MEIPASS or source repository root.
+  - get_user_data_dir(): Isolated user configuration path pointing to %APPDATA%\EAGLE.
+  - get_user_cache_dir(): User cache and model directory pointing to %LOCALAPPDATA%\EAGLE.
+  - get_logs_dir(): Centralized logging directory preventing executable folder writes.
+- **End-to-End Integration Test Suite (	ests/integration/test_end_to_end.py)**:
+  - 	est_e2e_voice_command_to_tool_execution: Full pipeline from transcribed voice command through router, allowlisted tool execution, EventBus events, to TTS speech response.
+  - 	est_e2e_wake_word_and_continuous_listening_lifecycle: Wake-word triggering, streaming chunk capture, silence timeout detection, speech processing, and barge-in interruption.
+  - 	est_e2e_ai_conversational_reasoning_and_tool_calling: Multi-turn conversational reasoning with dynamic tool selection.
+  - 	est_e2e_security_sandbox_enforcement: Interception and rejection of directory traversal attempts and unauthorized application launches.
+  - 	est_e2e_pyside6_main_window_integration: PySide6 GUI reaction to live EventBus events, card rendering, and thread-safe UI updates.
+- **Documentation & Release Hardening**:
+  - docs/BUILD_GUIDE.md: Comprehensive PyInstaller packaging instructions, onedir architecture rationale, build steps, and troubleshooting.
+  - docs/INSTALLATION_GUIDE.md: Step-by-step Windows 11 installation, portable vs standard paths, audio permissions, and uninstallation guide.
+  - docs/RELEASE_CHECKLIST.md: Pre-release audit covering code quality, testing, security, packaging, and synchronization.
+
+### Changed
+- Expanded automated test suite from 128 to 133 tests across 15 test modules with 100% pass rate.
+- Verified zero mypy typing errors across 52 source files.
+- Hardened packaging .gitignore to prevent any build outputs (dist/, uild/) or environment secrets from being staged.
+
+---
+
 ## [0.6.0] - 2026-11-05
 
 ### Added

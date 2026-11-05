@@ -190,6 +190,16 @@ EAGLE/
 
 ---
 
+### 3.10 Packaging & Path Architecture (eagle.core.paths & eagle.spec)
+- **Runtime Detection (eagle/core/paths.py)**: is_frozen() inspects sys.frozen and sys._MEIPASS to discern between running from raw source vs. bundled PyInstaller package.
+- **Resource Resolution**: get_app_root() locates assets in the PyInstaller extraction folder or repository root.
+- **Data Isolation**: User configurations are persistently stored in %APPDATA%\EAGLE\config.json, logs in %APPDATA%\EAGLE\logs\eagle.log, and model caches in %LOCALAPPDATA%\EAGLE\models\, ensuring application updates never overwrite user settings.
+- **PyInstaller Specification (eagle.spec)**: Configured in onedir mode (COLLECT) with console=False for zero-terminal launch, bundling hidden imports (sounddevice, pyttsx3, pydantic, psutil, PySide6) and stripping development utilities (pytest, mypy, 
+uff, 	kinter).
+- **Automated Packaging (scripts/build_windows.py)**: Automated build runner enforcing unit test pass, ruff lint clean, and mypy type checks before compiling the Windows binary and generating cryptographic SHA-256 checksums (dist/SHA256SUMS.txt).
+
+---
+
 ## 4. Concurrency & Threading Model
 
 - **Main Thread**: Runs the PySide6 Qt event loop or interactive CLI input loop, handling user gestures and keyboard commands.

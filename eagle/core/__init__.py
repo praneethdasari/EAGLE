@@ -10,6 +10,14 @@ from eagle.core.exceptions import (
     ToolError,
 )
 from eagle.core.logging import get_logger, setup_logging
+from eagle.core.paths import (
+    get_app_root,
+    get_default_config_path,
+    get_logs_dir,
+    get_models_dir,
+    get_user_data_dir,
+    is_frozen,
+)
 
 __all__ = [
     "EagleConfig",
@@ -23,4 +31,10 @@ __all__ = [
     "SecurityViolationError",
     "get_logger",
     "setup_logging",
+    "is_frozen",
+    "get_app_root",
+    "get_default_config_path",
+    "get_user_data_dir",
+    "get_logs_dir",
+    "get_models_dir",
 ]

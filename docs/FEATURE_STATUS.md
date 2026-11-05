@@ -26,5 +26,6 @@ This document maintains a truthful, verified status of all EAGLE capabilities. F
 | **Voice** | Wake Word Detection | **Completed** | Sliding STT energy gating, openWakeWord ONNX, and MockWakeWordEngine | `test_wake_word.py` (8 tests pass) |
 | **Voice** | Continuous Listening & State Machine | **Completed** | Thread-safe coordinator, legal state validation, trailing silence detection, speech barge-in interruption | `test_continuous_listener.py` (11 tests pass) |
 | **Interface** | PySide6 Desktop GUI | **Completed** | Dark eagle theme, audio visualizer, conversation feed, status sidebar, input bar, settings modal | `test_ui.py` (11 tests pass) |
-| **Release** | Standalone Packaging | **Planned** | Windows executable distribution | Scheduled Milestone 7 |
+| **Release** | Standalone Windows 11 Packaging | **Completed** | PyInstaller onedir distribution (COLLECT, console=False), isolated %APPDATA%\EAGLE config/logs, build pipeline (scripts/build_windows.py), SHA-256 integrity verification | dist/EAGLE/EAGLE.exe verified, dist/SHA256SUMS.txt |
+| **Testing** | End-to-End Pipeline Verification | **Completed** | Full voice-to-tool loop, wake word FSM transitions, AI tool calling, security sandbox defense, PySide6 GUI EventBus bridge | 	est_end_to_end.py (5 tests pass) |
 
