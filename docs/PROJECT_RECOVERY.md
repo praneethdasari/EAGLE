@@ -215,6 +215,7 @@ All four commands MUST exit with status 0 before pushing changes to GitHub.
 | **Milestone 5** | Wake Word & Continuous Listening | **Completed** | Sliding STT / openWakeWord, AssistantState machine, interruption, ContinuousListener |
 | **Milestone 6** | PySide6 Desktop GUI | **Completed** | Dark eagle theme, audio visualizer, conversation history feed, status indicators |
 | **Milestone 7** | Packaging & Distribution | **Completed** | PyInstaller onedir distribution, isolated paths, build automation, checksum verification |
+| **Milestone 8** | Real-World Deployment & Offline AI | **Completed** | Local Ollama AI, strict offline mode policy, local FasterWhisper caching, SAPI5 voice controls |
 
 ---
 
@@ -229,6 +230,9 @@ All four commands MUST exit with status 0 before pushing changes to GitHub.
 3. **PowerShell Script Execution Policy**:
    - *Symptom*: `.\.venv\Scripts\Activate.ps1 cannot be loaded because running scripts is disabled`.
    - *Resolution*: Run `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process` in the current PowerShell terminal session.
+4. **Ollama Daemon Not Running**:
+   - *Symptom*: Assistant reports Ollama server is unreachable on `http://localhost:11434`.
+   - *Resolution*: Run `ollama serve` or start Ollama from the Windows Start menu. Verify with `curl http://localhost:11434/api/version`.
 
 ---
 
@@ -248,7 +252,7 @@ If the local project directory is deleted or corrupted:
    .\.venv\Scripts\pytest.exe
    ```
 5. Consult `docs/TASK_LOG.md` to identify the last completed task.
-6. Check `docs/IMPLEMENTATION_PLAN.md` and resume from the next roadmap task (currently Milestone 6: PySide6 Desktop GUI).
+6. Check `docs/IMPLEMENTATION_PLAN.md` and resume from the next roadmap task (currently Milestone 9: Multi-modal Vision Perception & Desktop Intelligence).
 
 ---
 
@@ -257,28 +261,31 @@ If the local project directory is deleted or corrupted:
 This checkpoint represents the verified state at the conclusion of the latest development session:
 
 - **Session Date**: 2026-11-05
-- **Last Completed Task**: Task 007 — Windows 11 Packaging & Release Hardening (Milestone 7 / v0.1.0)
-- **Current Git Branch**: main
-- **Configured Remote**: origin -> https://github.com/praneethdasari/EAGLE.git
-- **Release Version**: 0.1.0 (First Production Release)
+- **Last Completed Task**: Task 008 — Real-World Deployment & Offline AI Integration (Milestone 8)
+- **Current Git Branch**: `main`
+- **Latest Commit**: `0f100d0`
+- **Configured Remote**: `origin -> https://github.com/praneethdasari/EAGLE.git`
+- **Release Version**: `v0.8.0` (Milestone 8 Completed)
 - **Features Completed in Session**:
-  - Standalone Windows 11 executable build configured with PyInstaller (eagle.spec).
-  - Onedir collection architecture (COLLECT) with native GUI subsystem (console=False).
-  - Isolated paths architecture (eagle.core.paths): User config (%APPDATA%\EAGLE), logs (%APPDATA%\EAGLE\logs), and model cache (%LOCALAPPDATA%\EAGLE).
-  - Automated build script (scripts/build_windows.py) with quality gates and SHA-256 hash generation (dist/SHA256SUMS.txt).
-  - 5 comprehensive end-to-end integration tests (	ests/integration/test_end_to_end.py) verifying voice-to-tool, continuous listening, AI tool calling, security sandboxing, and PySide6 UI synchronization.
-  - Complete documentation suite: docs/BUILD_GUIDE.md, docs/INSTALLATION_GUIDE.md, and docs/RELEASE_CHECKLIST.md.
+  - Local Ollama AI provider (`OllamaProvider`) with installation check, daemon verification, model tag discovery, and dual tool calling engine.
+  - Strict offline security policy (`OfflinePolicyViolationError`) intercepting all outbound cloud calls when `offline_mode: true`.
+  - Local FasterWhisper STT cache verification with `local_files_only=True` in `%LOCALAPPDATA%\EAGLE\models\whisper`.
+  - Local SAPI5 voice enumeration, runtime selection, and volume/rate controls via `Pyttsx3TTSEngine`.
+  - Offline wake-word detection model resolution in `%LOCALAPPDATA%\EAGLE\models\wakeword`.
+  - Desktop UI status panel displaying live Ollama status, model tag, and offline badge.
+  - Settings dialog with SAPI5 voice dropdown and offline mode toggle.
+  - 17 new automated tests (10 unit, 7 integration) bringing the total suite to 150 passed tests.
+  - Standalone Windows 11 executable rebuilt (`dist/EAGLE/EAGLE.exe`, 6.62 MB, SHA-256: `140f5a06576e4791a5a08d91a92ec822999aeb489bfdfe59c1821e2c06dd123a`).
+  - Comprehensive offline deployment guide: `docs/OFFLINE_SETUP.md`.
 - **Features In Progress**:
-  - None (Milestones 0–7 fully implemented, tested, and packaged).
+  - None (Milestones 0–8 fully implemented, tested, verified, and packaged).
 - **Outstanding Errors & Blockers**:
   - None. 0 errors, 0 blockers.
 - **Tests Executed & Results**:
-  - pytest: 133/133 tests passing (100% pass rate in ~4.8s across 15 test modules)
-  - 
-uff check eagle tests scripts: Clean (0 errors)
-  - 
-uff format eagle tests scripts: Clean (52 files checked)
-  - mypy eagle tests scripts: Clean (Success: no issues found in 52 source files)
-  - PyInstaller Standalone Build: dist/EAGLE/EAGLE.exe verified (SHA-256: 183e169457f5dda39fecd73b772e959a9f4c87174442288f590cbdb29bc7264a)
+  - `pytest tests/unit tests/integration`: 150/150 tests passing (100% pass rate in ~5.8s across 17 test modules)
+  - `ruff check eagle tests scripts`: Clean (0 errors)
+  - `ruff format --check eagle tests scripts`: Clean (54 source files checked)
+  - `mypy eagle tests scripts`: Clean (Success: no issues found in 54 source files)
+  - PyInstaller Standalone Build: `dist/EAGLE/EAGLE.exe` verified (SHA-256: `140f5a06576e4791a5a08d91a92ec822999aeb489bfdfe59c1821e2c06dd123a`)
 - **Next Recommended Task**:
-  - Post-v0.1.0 Roadmap: Multi-modal vision/screen perception (OCR, UI analysis) and extended third-party tool integrations.
+  - Milestone 9: Multi-modal vision perception (screen capture, OCR, window inspection) and advanced desktop automation.

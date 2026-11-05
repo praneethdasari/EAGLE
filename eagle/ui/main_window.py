@@ -64,6 +64,10 @@ class MainWindow(QMainWindow):
         # Build UI layout
         self._init_ui()
 
+        # Update initial AI status
+        if hasattr(self.ai_orchestrator, "get_provider_status"):
+            self.status_panel.update_ai_status(self.ai_orchestrator.get_provider_status())
+
         # Connect bridge signals to UI slots
         self._wire_bridge_signals()
 
@@ -275,6 +279,8 @@ class MainWindow(QMainWindow):
     def _on_settings_saved(self, updated_config: EagleConfig) -> None:
         self.config = updated_config
         self.status_panel.config = updated_config
+        if hasattr(self.ai_orchestrator, "get_provider_status"):
+            self.status_panel.update_ai_status(self.ai_orchestrator.get_provider_status())
         self.status_panel.refresh_telemetry()
         self.feed_widget.add_assistant_message("⚙️ Settings updated and saved successfully.")
 

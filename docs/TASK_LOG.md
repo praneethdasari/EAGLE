@@ -312,6 +312,69 @@ This document records completed development tasks, affected files, tests execute
 uff check eagle tests scripts (All clean)
   - mypy eagle tests scripts (Success: no issues found in 52 source files)
   - PyInstaller Build (dist/EAGLE/EAGLE.exe verified, SHA-256: 183e169457f5dda39fecd73b772e959a9f4c87174442288f590cbdb29bc7264a)
-- **Git Commit**: (Pending v0.1.0 release commit)
-- **GitHub Push Target**: origin/main & tag 0.1.0 (https://github.com/praneethdasari/EAGLE.git)
+- **Git Commit**: `cf2e84c` (`feat(release): finalize Windows 11 PyInstaller packaging, E2E tests, and v0.1.0 release hardening`)
+- **GitHub Push Target**: origin/main & tag v0.1.0 (https://github.com/praneethdasari/EAGLE.git)
+- **Status**: Completed
+
+---
+
+## Task 008: Real-World Deployment & Offline AI Integration (Milestone 8)
+- **Date**: 2026-11-05
+- **Architect/Engineer**: Google Antigravity (Lead Architect & Senior Developer)
+- **Objective**: Implement complete offline AI functionality for EAGLE without requiring cloud subscriptions, paid API keys, or active network connectivity. Deliver local Ollama AI integration with automated health checks, model discovery, native and inline structured tool calling; local FasterWhisper STT with strict offline cache enforcement; local Windows SAPI5 voice enumeration and control; local wake-word model path resolution; strict offline security policy blocking cloud APIs; PySide6 UI status and settings dialog integration; and rebuild the Windows 11 standalone executable.
+- **Feature Name and Purpose**:
+  - Local Ollama AI Integration (`eagle/services/ai_provider.py`): Pluggable `OllamaProvider` connecting to local Ollama runtime (`http://localhost:11434`), validating daemon availability via `/api/version`, discovering models via `/api/tags`, and executing native OpenAI-compatible structured tool calling with fallback inline argument extraction.
+  - Strict Offline Security Policy (`eagle/core/exceptions.py` & `eagle/core/config.py`): `OfflinePolicyViolationError` strictly blocks any outbound HTTP requests to cloud AI services (OpenAI, Groq, custom external hosts) when `offline_mode: true` is configured, preventing data leaks.
+  - Offline Speech-to-Text (`eagle/services/stt.py`): `FasterWhisperSTT` supports local-only execution (`local_files_only=True`), inspecting pre-cached model weights in `%LOCALAPPDATA%\EAGLE\models\whisper` and raising `TranscriptionError` rather than initiating unauthorized network downloads.
+  - Local SAPI5 Voice Control (`eagle/services/tts.py`): Windows SAPI5 voice enumeration (`get_available_voices()`), runtime voice selection, speaking rate, and volume adjustments via `Pyttsx3TTSEngine` with immediate barge-in interruption.
+  - Local Wake-Word Model Discovery (`eagle/services/wake_word.py`): Dedicated model directory at `%LOCALAPPDATA%\EAGLE\models\wakeword` with sliding STT fallback.
+  - Desktop GUI Integration (`eagle/ui/status_panel.py` & `eagle/ui/settings_dialog.py`): Real-time Ollama connectivity status, model tag indicators, offline mode badge, and settings controls for strict offline mode and SAPI5 voice selection.
+- **Implementation Status**: Completed (100% verified with automated unit and integration tests and standalone executable compilation)
+- **Exact Source Code File Paths**:
+  - `eagle/core/exceptions.py`
+  - `eagle/core/config.py`
+  - `eagle/core/logging.py`
+  - `eagle/core/__init__.py`
+  - `eagle/services/ai_provider.py`
+  - `eagle/services/stt.py`
+  - `eagle/services/tts.py`
+  - `eagle/services/wake_word.py`
+  - `eagle/ui/status_panel.py`
+  - `eagle/ui/settings_dialog.py`
+  - `eagle/ui/main_window.py`
+  - `tests/unit/test_ollama_provider.py`
+  - `tests/integration/test_offline_pipeline.py`
+  - `docs/OFFLINE_SETUP.md`
+- **Dependencies & Configuration Requirements**:
+  - Local Ollama runtime (`http://localhost:11434`) with default model `qwen2.5:3b` or `llama3.2:3b`.
+  - Windows SAPI5 native voices (Windows 11).
+  - FasterWhisper local cache in `%LOCALAPPDATA%\EAGLE\models\whisper`.
+- **How the Feature Interacts With Other Modules**:
+  - `get_ai_provider()` factory routes to `OllamaProvider` when configured and rejects cloud providers in offline mode.
+  - `AIOrchestrator` queries `OllamaProvider.check_health()` and updates `StatusPanelWidget` through `MainWindow`.
+  - Settings dialog persists `offline_mode` and TTS voice selections to `%APPDATA%\EAGLE\config.json`.
+- **Tests Covering the Feature**:
+  - `tests/unit/test_ollama_provider.py` (10 unit tests)
+  - `tests/integration/test_offline_pipeline.py` (7 integration tests)
+  - Total test suite: 150 tests passing across 17 test modules.
+- **Commands Required to Run and Verify It**:
+  - Tests: `.\.venv\Scripts\pytest.exe tests/unit tests/integration`
+  - Lint: `.\.venv\Scripts\ruff.exe check eagle tests scripts`
+  - Format: `.\.venv\Scripts\ruff.exe format --check eagle tests scripts`
+  - Type Check: `.\.venv\Scripts\mypy.exe eagle tests scripts`
+  - Build Executable: `.\.venv\Scripts\python.exe scripts/build_windows.py`
+  - CLI: `.\.venv\Scripts\python.exe -m eagle.main --cli`
+  - GUI: `.\.venv\Scripts\python.exe -m eagle.main`
+- **Known Limitations & Outstanding Issues**:
+  - Ollama must be running locally for local AI reasoning; when stopped, `OllamaProvider` delivers clear, actionable guidance to start the daemon.
+- **Next Logical Development Task**:
+  - Milestone 9: Multi-modal vision perception (screen capture, OCR, window inspection) and advanced desktop automation.
+- **Tests Executed**:
+  - `pytest tests/unit tests/integration` (150/150 tests passing in 5.86s)
+  - `ruff check eagle tests scripts` (All clean)
+  - `ruff format --check eagle tests scripts` (54 source files checked, clean)
+  - `mypy eagle tests scripts` (Success: no issues found in 54 source files)
+  - PyInstaller Rebuild (`dist/EAGLE/EAGLE.exe` verified, 6.62 MB, SHA-256: `140f5a06576e4791a5a08d91a92ec822999aeb489bfdfe59c1821e2c06dd123a`)
+- **Git Commit**: `0f100d0` (`feat(offline): complete Milestone 8 Ollama local AI integration, offline pipelines, and deployment hardening`)
+- **GitHub Push Target**: `origin/main` (`https://github.com/praneethdasari/EAGLE.git`)
 - **Status**: Completed

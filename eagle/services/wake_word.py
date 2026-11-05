@@ -4,10 +4,12 @@ import re
 import threading
 import time
 from abc import ABC, abstractmethod
+from pathlib import Path
 from typing import Any
 
 from eagle.core.config import EagleConfig, VoiceConfig
 from eagle.core.logging import get_logger
+from eagle.core.paths import get_models_dir
 from eagle.services.audio_capture import calculate_rms_amplitude, pcm_to_wav_bytes
 from eagle.services.stt import BaseSTTEngine, MockSTTEngine
 
@@ -232,13 +234,34 @@ class OpenWakeWordEngine(BaseWakeWordEngine):
         self._is_available = False
         self._init_model()
 
+    @staticmethod
+    def get_models_directory() -> Path:
+        """Return directory for local wake word models."""
+        return get_models_dir() / "wakeword"
+
+    def _resolve_model_path(self) -> str | None:
+        if self.model_path and Path(self.model_path).exists():
+            return str(Path(self.model_path).resolve())
+        models_dir = self.get_models_directory()
+        if models_dir.exists():
+            clean_phrase = self.wake_phrase.replace(" ", "_")
+            for ext in (".onnx", ".tflite"):
+                candidate = models_dir / f"{clean_phrase}{ext}"
+                if candidate.exists():
+                    return str(candidate.resolve())
+                candidate_eagle = models_dir / f"eagle{ext}"
+                if candidate_eagle.exists():
+                    return str(candidate_eagle.resolve())
+        return self.model_path
+
     def _init_model(self) -> None:
+        resolved_path = self._resolve_model_path()
         try:
             from openwakeword.model import Model  # type: ignore[import-untyped,import-not-found]
 
             # openWakeWord expects 16-bit 16kHz PCM chunks
-            if self.model_path:
-                self._model = Model(wakeword_models=[self.model_path], inference_framework="onnx")
+            if resolved_path:
+                self._model = Model(wakeword_models=[resolved_path], inference_framework="onnx")
             else:
                 self._model = Model(inference_framework="onnx")
             self._is_available = True

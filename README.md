@@ -99,11 +99,10 @@ Read the full threat model in [docs/SECURITY.md](docs/SECURITY.md).
 - [Milestone Implementation Plan](docs/IMPLEMENTATION_PLAN.md)
 - [Windows Build & Packaging Guide](docs/BUILD_GUIDE.md)
 - [Windows 11 Installation Guide](docs/INSTALLATION_GUIDE.md)
+- [Offline & Local AI Setup Guide](docs/OFFLINE_SETUP.md)
 - [Release Hardening Checklist](docs/RELEASE_CHECKLIST.md)
 - [Project Recovery Guide](docs/PROJECT_RECOVERY.md)
 - [Persistent Agent Instructions (AGENTS.md)](AGENTS.md)
-
----
 
 ---
 
@@ -129,3 +128,5 @@ EAGLE executes verified desktop automation actions through a sandboxed tool regi
 - **Milestone 5**: Wake Word Detection & Continuous Listening (Completed)
 - **Milestone 6**: PySide6 Desktop GUI (Completed)
 - **Milestone 7**: Release Hardening & Windows Executable Packaging (Completed)
+- **Milestone 8**: Real-World Deployment & Offline AI Integration (Completed)
+- **Milestone 9**: Multi-modal Vision Perception & Desktop Intelligence (Planned)

@@ -200,6 +200,28 @@ uff, 	kinter).
 
 ---
 
+### 3.11 Ollama Local AI Provider & Offline Execution Model
+- **`OllamaProvider` (`eagle/services/ai_provider.py`)**:
+  - Extends `OpenAICompatibleProvider` with Ollama-specific lifecycle management and local diagnostic health checks.
+  - Runtime validation: `is_installed()` inspects Windows registry and `%PATH%` for `ollama.exe`; `is_server_running()` queries `http://localhost:11434/api/version`.
+  - Model discovery: `get_available_models()` fetches installed local models via `http://localhost:11434/api/tags`; `is_model_available(name)` validates specific tags (e.g. `qwen2.5:3b`, `llama3.2:3b`).
+  - Dual tool-calling engine: attempts native OpenAI-compatible structured tool schemas (`tools` parameter) first; gracefully falls back to inline JSON extraction if smaller quantized models produce inline argument dictionaries.
+  - Descriptive error classification: maps unreachable servers to actionable suggestions (`"Ollama server is not running on http://localhost:11434..."`) and missing models to specific pull instructions (`"Model '...' not found. Pull it using 'ollama run ...'"`).
+- **Strict Offline Mode Policy (`OfflinePolicyViolationError`)**:
+  - When `ai.offline_mode` is enabled, all outbound calls to cloud AI endpoints (OpenAI, Groq, custom external hosts) are strictly intercepted and blocked with `OfflinePolicyViolationError`.
+  - Guarantees zero background telemetry, data leakage, or external dependency at runtime.
+- **Local Speech Recognition (`FasterWhisperSTT`)**:
+  - Model caching restricted to local directory (`%LOCALAPPDATA%\EAGLE\models\whisper`).
+  - When `local_files_only: true` (or offline mode), checks local cache and raises `TranscriptionError` if the model has not been pre-downloaded, prohibiting unauthorized network downloads.
+- **Local Speech Synthesis (`Pyttsx3TTSEngine`)**:
+  - Offline Windows SAPI5 voice enumeration via `get_available_voices()`.
+  - Dynamic runtime voice selection, speaking rate, and volume adjustment with thread-safe non-blocking audio output and immediate speech interruption on barge-in.
+- **Offline Wake-Word Detection (`OpenWakeWordEngine` & `SlidingSTTWakeWordEngine`)**:
+  - Local model directory resolution at `%LOCALAPPDATA%\EAGLE\models\wakeword`.
+  - Energy-gated RMS detection combined with sliding STT fallback for offline continuous wake activation.
+
+---
+
 ## 4. Concurrency & Threading Model
 
 - **Main Thread**: Runs the PySide6 Qt event loop or interactive CLI input loop, handling user gestures and keyboard commands.

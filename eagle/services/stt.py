@@ -3,11 +3,13 @@
 import io
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 from eagle.core.config import AudioConfig
 from eagle.core.exceptions import TranscriptionError
 from eagle.core.logging import get_logger
+from eagle.core.paths import get_models_dir
 
 logger = get_logger("services.stt")
 
@@ -90,23 +92,70 @@ class FasterWhisperSTT(BaseSTTEngine):
         model_size: str = "base",
         device: str = "cpu",
         compute_type: str = "int8",
+        download_root: Path | str | None = None,
+        local_files_only: bool = False,
     ) -> None:
         self.model_size = model_size
         self.device = device
         self.compute_type = compute_type
+        self.download_root = (
+            Path(download_root) if download_root is not None else get_models_dir() / "whisper"
+        )
+        self.local_files_only = local_files_only
         self._model: Any = None
+
+    def is_model_cached(self) -> bool:
+        """Check whether the model weights exist locally in download_root."""
+        if not self.download_root.exists():
+            return False
+
+        # Look for faster-whisper model directories or direct model files
+        matches = list(self.download_root.glob(f"*{self.model_size}*"))
+        if matches:
+            return True
+
+        # Check HuggingFace hub cache subdirectories if applicable
+        hub_dir = self.download_root / f"models--Systran--faster-whisper-{self.model_size}"
+        return hub_dir.exists()
+
+    def list_cached_models(self) -> list[str]:
+        """Scan download_root for cached Whisper models."""
+        if not self.download_root.exists():
+            return []
+        found: set[str] = set()
+        for p in self.download_root.iterdir():
+            name = p.name.lower()
+            for size in ("tiny", "base", "small", "medium", "large"):
+                if size in name:
+                    found.add(size)
+        return sorted(found)
 
     def _ensure_loaded(self) -> None:
         if self._model is not None:
             return
+
+        if self.local_files_only and not self.is_model_cached():
+            raise TranscriptionError(
+                f"Faster-whisper model '{self.model_size}' is not cached in '{self.download_root}'. "
+                "In offline mode, speech models must be pre-downloaded.",
+                details={"model_size": self.model_size, "download_root": str(self.download_root)},
+            )
+
         try:
             from faster_whisper import WhisperModel
 
-            logger.info("Loading faster-whisper model '%s' on %s...", self.model_size, self.device)
+            logger.info(
+                "Loading faster-whisper model '%s' from %s on %s...",
+                self.model_size,
+                self.download_root,
+                self.device,
+            )
             self._model = WhisperModel(
                 self.model_size,
                 device=self.device,
                 compute_type=self.compute_type,
+                download_root=str(self.download_root),
+                local_files_only=self.local_files_only,
             )
         except ImportError as exc:
             raise TranscriptionError(
@@ -155,13 +204,21 @@ class FasterWhisperSTT(BaseSTTEngine):
             return False
 
 
-def create_stt_engine(config: AudioConfig) -> BaseSTTEngine:
+def create_stt_engine(
+    config: AudioConfig,
+    offline_mode: bool = False,
+    download_root: Path | str | None = None,
+) -> BaseSTTEngine:
     """Factory creating the appropriate STT engine based on configuration."""
     if config.stt_model_size.lower() == "mock":
         return MockSTTEngine()
 
     # If faster-whisper is available, use it; otherwise fallback gracefully to Mock with warning
-    faster_whisper_engine = FasterWhisperSTT(model_size=config.stt_model_size)
+    faster_whisper_engine = FasterWhisperSTT(
+        model_size=config.stt_model_size,
+        download_root=download_root or (get_models_dir() / "whisper"),
+        local_files_only=offline_mode,
+    )
     if faster_whisper_engine.is_available():
         return faster_whisper_engine
 

@@ -117,6 +117,10 @@ class SecurityViolationError(ToolError):
     """Raised when an operation attempts unauthorized actions or path traversal."""
 
 
+class OfflinePolicyViolationError(SecurityViolationError):
+    """Raised when an operation attempts external network/cloud access while in offline mode."""
+
+
 class PermissionDeniedError(ToolError):
     """Raised when an operation is cancelled or rejected by user confirmation."""
 

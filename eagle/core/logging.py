@@ -5,6 +5,8 @@ import re
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
+from eagle.core.paths import get_logs_dir
+
 # Regex patterns matching potential API keys and secrets
 SENSITIVE_PATTERNS = [
     re.compile(r"sk-[a-zA-Z0-9_-]{20,}", re.IGNORECASE),  # OpenAI & generic sk- keys
@@ -94,7 +96,7 @@ def setup_logging(
     if log_dir is not None:
         target_dir = Path(log_dir)
     else:
-        target_dir = Path("logs")
+        target_dir = get_logs_dir()
 
     try:
         target_dir.mkdir(parents=True, exist_ok=True)
@@ -110,8 +112,23 @@ def setup_logging(
         file_handler.addFilter(redactor)
         root_logger.addHandler(file_handler)
     except (OSError, PermissionError) as exc:
-        # If file logging cannot be initialized, warn via console
-        root_logger.warning("Failed to initialize file logger in %s: %s", target_dir, exc)
+        # If AppData logging directory cannot be created, fallback to local workspace logs/
+        try:
+            local_dir = Path("logs")
+            local_dir.mkdir(parents=True, exist_ok=True)
+            file_path = local_dir / log_file_name
+            file_handler = RotatingFileHandler(
+                filename=str(file_path),
+                maxBytes=max_bytes,
+                backupCount=backup_count,
+                encoding="utf-8",
+            )
+            file_handler.setLevel(numeric_level)
+            file_handler.setFormatter(formatter)
+            file_handler.addFilter(redactor)
+            root_logger.addHandler(file_handler)
+        except Exception:
+            root_logger.warning("Failed to initialize file logger in %s: %s", target_dir, exc)
 
     return root_logger
 

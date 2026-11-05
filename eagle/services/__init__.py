@@ -7,6 +7,7 @@ from eagle.services.ai_provider import (
     ChatMessage,
     ConversationManager,
     MockAIProvider,
+    OllamaProvider,
     OpenAICompatibleProvider,
     ToolCall,
     get_ai_provider,
@@ -59,6 +60,7 @@ __all__ = [
     # AI Reasoning & Tool Calling
     "BaseAIProvider",
     "MockAIProvider",
+    "OllamaProvider",
     "OpenAICompatibleProvider",
     "ChatMessage",
     "ToolCall",

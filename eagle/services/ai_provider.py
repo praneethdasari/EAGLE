@@ -3,8 +3,10 @@
 import json
 import os
 import re
+import shutil
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 import requests
@@ -23,6 +25,7 @@ from eagle.core.exceptions import (
     InvalidResponseError,
     ModelUnavailableError,
     NetworkTimeoutError,
+    OfflinePolicyViolationError,
     RateLimitExceededError,
 )
 from eagle.core.logging import get_logger
@@ -371,6 +374,19 @@ class OpenAICompatibleProvider(BaseAIProvider):
         tools: list[dict[str, Any]] | None = None,
     ) -> AIResponse:
         """Send chat completion request to the OpenAI-compatible REST endpoint."""
+        # Check offline policy enforcement for cloud providers
+        if self.config.offline_mode and self.config.provider.lower() in (
+            "openai",
+            "groq",
+            "gemini",
+            "anthropic",
+        ):
+            raise OfflinePolicyViolationError(
+                f"Offline mode active: Cloud AI requests to '{self.config.provider}' are prohibited. "
+                "Switch to a local provider ('ollama') or disable offline mode in settings.",
+                details={"provider": self.config.provider, "offline_mode": True},
+            )
+
         # Ollama can run without an API key; cloud providers require an API key
         if not self.is_available():
             raise AuthenticationError(
@@ -498,6 +514,264 @@ class OpenAICompatibleProvider(BaseAIProvider):
         )
 
 
+class OllamaProvider(OpenAICompatibleProvider):
+    """Local, offline AI reasoning provider connecting to an Ollama server."""
+
+    DEFAULT_BASE_URL = "http://localhost:11434"
+    DEFAULT_MODEL = "qwen2.5:3b"
+
+    def __init__(self, config: AIConfig | None = None) -> None:
+        super().__init__(config=config)
+        raw_url = self.config.base_url or self.DEFAULT_BASE_URL
+        # Normalize base URL (strip trailing slash and /v1 if present)
+        clean_url = raw_url.rstrip("/")
+        if clean_url.endswith("/v1"):
+            clean_url = clean_url[:-3]
+        self.base_url = clean_url
+
+        # Model selection: prefer explicit config; if default gpt-4o-mini is set, use qwen2.5:3b
+        if self.config.model_name and self.config.model_name != "gpt-4o-mini":
+            self.model_name = self.config.model_name
+        else:
+            self.model_name = self.DEFAULT_MODEL
+
+        self.timeout = max(self.config.timeout_seconds, 60.0)
+        self.offline_mode = self.config.offline_mode
+
+    @staticmethod
+    def is_installed() -> bool:
+        """Detect whether Ollama CLI/executable is installed on the host system."""
+        if shutil.which("ollama") is not None:
+            return True
+
+        local_appdata = os.environ.get("LOCALAPPDATA")
+        standard_paths = [
+            Path("C:/Program Files/Ollama/ollama.exe"),
+            Path("C:/Program Files (x86)/Ollama/ollama.exe"),
+        ]
+        if local_appdata:
+            standard_paths.append(Path(local_appdata) / "Programs" / "Ollama" / "ollama.exe")
+
+        return any(p.is_file() for p in standard_paths)
+
+    def is_server_running(self) -> bool:
+        """Check whether the local Ollama server is responding to HTTP requests."""
+        endpoint = f"{self.base_url}/api/version"
+        try:
+            resp = requests.get(endpoint, timeout=1.5)
+            return resp.status_code == 200
+        except Exception:
+            return False
+
+    def get_available_models(self) -> list[str]:
+        """Fetch list of pulled/installed models from the Ollama server."""
+        endpoint = f"{self.base_url}/api/tags"
+        try:
+            resp = requests.get(endpoint, timeout=2.0)
+            if resp.status_code == 200:
+                data = resp.json()
+                models = data.get("models", [])
+                return [m.get("name", "") for m in models if m.get("name")]
+        except Exception as exc:
+            logger.debug("Failed querying Ollama models at %s: %s", endpoint, exc)
+        return []
+
+    def is_model_available(self, model_name: str | None = None) -> bool:
+        """Check if the configured or requested model is available locally in Ollama."""
+        target = (model_name or self.model_name).lower().strip()
+        available = [m.lower().strip() for m in self.get_available_models()]
+
+        for m in available:
+            if m == target or m.startswith(f"{target}:") or target.startswith(f"{m}:"):
+                return True
+            base_m = m.split(":")[0]
+            base_target = target.split(":")[0]
+            if base_m == base_target and (":3b" in m or ":3b" in target):
+                return True
+
+        return False
+
+    def check_health(self) -> tuple[bool, str]:
+        """Perform comprehensive health check on Ollama runtime."""
+        if not self.is_installed() and not self.is_server_running():
+            return (
+                False,
+                "Ollama is not installed or not found on PATH. Download from https://ollama.com",
+            )
+
+        if not self.is_server_running():
+            return (
+                False,
+                f"Ollama server is not running at {self.base_url}. Start Ollama to enable local AI reasoning.",
+            )
+
+        models = self.get_available_models()
+        if not models:
+            return (
+                False,
+                f"Ollama server is running, but no models are installed. Run 'ollama pull {self.model_name}'.",
+            )
+
+        if not self.is_model_available():
+            available_str = ", ".join(models[:3])
+            return (
+                False,
+                f"Configured model '{self.model_name}' is not in Ollama. Available: {available_str}. Run 'ollama pull {self.model_name}'.",
+            )
+
+        return True, f"Ollama operational with model '{self.model_name}'."
+
+    def is_available(self) -> bool:
+        """Return True if the Ollama server is running and reachable."""
+        return self.is_server_running()
+
+    def generate_response(
+        self,
+        messages: list[ChatMessage],
+        tools: list[dict[str, Any]] | None = None,
+    ) -> AIResponse:
+        """Generate reasoning response using Ollama's OpenAI-compatible completions API."""
+        if not self.is_server_running():
+            raise ModelUnavailableError(
+                f"Ollama server is not reachable at '{self.base_url}'. "
+                "Ensure Ollama is running locally ('ollama serve') before querying.",
+                details={"base_url": self.base_url, "model": self.model_name},
+            )
+
+        endpoint = f"{self.base_url}/v1/chat/completions"
+        headers = {"Content-Type": "application/json"}
+
+        payload: dict[str, Any] = {
+            "model": self.model_name,
+            "messages": [m.to_dict() for m in messages],
+            "temperature": self.config.temperature,
+            "max_tokens": self.config.max_tokens,
+            "stream": False,
+        }
+
+        if tools:
+            payload["tools"] = tools
+            payload["tool_choice"] = "auto"
+
+        logger.debug(
+            "Dispatching request to Ollama endpoint: %s (model: %s)", endpoint, self.model_name
+        )
+
+        try:
+            response = requests.post(endpoint, json=payload, headers=headers, timeout=self.timeout)
+        except requests.exceptions.Timeout as exc:
+            logger.error("Ollama request timed out after %ss: %s", self.timeout, exc)
+            raise NetworkTimeoutError(
+                f"Local Ollama generation timed out after {self.timeout} seconds for model '{self.model_name}'.",
+                details={"endpoint": endpoint, "model": self.model_name, "timeout": self.timeout},
+            ) from exc
+        except requests.exceptions.ConnectionError as exc:
+            logger.error("Cannot connect to Ollama server: %s", exc)
+            raise ModelUnavailableError(
+                f"Cannot connect to Ollama at '{self.base_url}'. The server may have stopped.",
+                details={"endpoint": endpoint},
+            ) from exc
+        except Exception as exc:
+            logger.error("Unexpected error contacting Ollama: %s", exc)
+            raise AIProviderError(f"Failed to communicate with local Ollama: {exc}") from exc
+
+        if response.status_code == 404:
+            raise ModelUnavailableError(
+                f"Model '{self.model_name}' was not found in Ollama (HTTP 404). "
+                f"Please pull the model using: ollama pull {self.model_name}",
+                details={"status_code": 404, "model": self.model_name, "response": response.text},
+            )
+
+        if response.status_code != 200:
+            raise AIProviderError(
+                f"Ollama returned HTTP {response.status_code}: {response.text}",
+                details={"status_code": response.status_code, "response": response.text},
+            )
+
+        try:
+            data = response.json()
+        except Exception as exc:
+            raise InvalidResponseError(
+                f"Ollama returned malformed non-JSON payload: {exc}",
+                details={"raw_text": response.text},
+            ) from exc
+
+        choices = data.get("choices")
+        if not choices or not isinstance(choices, list):
+            raise InvalidResponseError(
+                "Ollama response missing 'choices' list.", details={"data": data}
+            )
+
+        choice = choices[0]
+        message = choice.get("message", {})
+        content = message.get("content")
+        finish_reason = choice.get("finish_reason", "stop")
+
+        raw_tool_calls = message.get("tool_calls", [])
+        parsed_tool_calls: list[ToolCall] = []
+
+        for tc in raw_tool_calls:
+            tc_id = tc.get("id", f"call_ollama_{len(parsed_tool_calls)}")
+            func_data = tc.get("function", {})
+            func_name = func_data.get("name", "")
+            raw_args = func_data.get("arguments", "{}")
+
+            if isinstance(raw_args, str):
+                try:
+                    args_dict = json.loads(raw_args)
+                except Exception:
+                    args_dict = {"raw_arguments": raw_args}
+            elif isinstance(raw_args, dict):
+                args_dict = raw_args
+            else:
+                args_dict = {}
+
+            parsed_tool_calls.append(ToolCall(id=tc_id, tool_name=func_name, arguments=args_dict))
+
+        # Fallback: Extract inline tool calls from message content if native tool_calls is empty
+        if not parsed_tool_calls and content and tools:
+            parsed_tool_calls = self._extract_inline_tool_calls(content, tools)
+            if parsed_tool_calls:
+                finish_reason = "tool_calls"
+                content = None
+
+        return AIResponse(
+            content=content,
+            tool_calls=parsed_tool_calls,
+            raw_response=data,
+            finish_reason=finish_reason,
+        )
+
+    def _extract_inline_tool_calls(self, text: str, tools: list[dict[str, Any]]) -> list[ToolCall]:
+        """Extract tool calls if a model rendered them as inline JSON or code blocks."""
+        tool_names = {
+            t.get("function", {}).get("name", "")
+            for t in tools
+            if t.get("function", {}).get("name")
+        }
+        extracted: list[ToolCall] = []
+
+        # Check for json code blocks ```json { "name": ..., "arguments": ... } ```
+        json_blocks = re.findall(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
+        for block in json_blocks:
+            try:
+                data = json.loads(block)
+                name = data.get("name") or data.get("tool")
+                args = data.get("arguments") or data.get("parameters") or {}
+                if name in tool_names:
+                    extracted.append(
+                        ToolCall(
+                            id=f"call_inline_{len(extracted)}",
+                            tool_name=name,
+                            arguments=args if isinstance(args, dict) else {},
+                        )
+                    )
+            except Exception:
+                continue
+
+        return extracted
+
+
 class ConversationManager:
     """Maintains conversational context, enforces turn budgets, and manages message formatting."""
 
@@ -553,10 +827,20 @@ def get_ai_provider(config: EagleConfig | None = None) -> BaseAIProvider:
     cfg = config or EagleConfig()
     provider_name = cfg.ai.provider.lower().strip()
 
+    if cfg.ai.offline_mode and provider_name in ("openai", "groq", "gemini", "anthropic"):
+        raise OfflinePolicyViolationError(
+            f"Offline mode active: Cloud AI provider '{provider_name}' is forbidden. "
+            "Switch to 'ollama' or 'mock' for local offline operation.",
+            details={"provider": provider_name, "offline_mode": True},
+        )
+
     if provider_name == "mock":
         return MockAIProvider(config=cfg.ai)
 
-    if provider_name in ("openai", "groq", "ollama", "openai_compatible"):
+    if provider_name == "ollama":
+        return OllamaProvider(config=cfg.ai)
+
+    if provider_name in ("openai", "groq", "openai_compatible"):
         return OpenAICompatibleProvider(config=cfg.ai)
 
     logger.warning("Unrecognized AI provider '%s', defaulting to MockAIProvider.", provider_name)
@@ -585,6 +869,37 @@ class AIOrchestrator:
     def is_available(self) -> bool:
         """Return True if the underlying AI provider is configured and available."""
         return self.provider.is_available()
+
+    def get_provider_status(self) -> dict[str, Any]:
+        """Return diagnostic status of the active AI reasoning provider."""
+        provider_name = self.config.ai.provider
+        model_name = self.config.ai.model_name
+        is_avail = self.provider.is_available()
+
+        if isinstance(self.provider, OllamaProvider):
+            healthy, msg = self.provider.check_health()
+            return {
+                "provider": "ollama",
+                "model": self.provider.model_name,
+                "is_available": is_avail,
+                "is_healthy": healthy,
+                "health_message": msg,
+                "offline_mode": self.config.ai.offline_mode,
+                "base_url": self.provider.base_url,
+                "available_models": self.provider.get_available_models() if is_avail else [],
+            }
+
+        health_msg = "Operational" if is_avail else "Missing API credentials"
+        return {
+            "provider": provider_name,
+            "model": model_name,
+            "is_available": is_avail,
+            "is_healthy": is_avail,
+            "health_message": health_msg,
+            "offline_mode": self.config.ai.offline_mode,
+            "base_url": getattr(self.provider, "base_url", None),
+            "available_models": [],
+        }
 
     def process_query(self, user_query: str) -> str:
         """Process a natural language user query through reasoning and structured tool calling.

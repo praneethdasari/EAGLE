@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.8.0] - 2026-11-05
+
+### Added
+- **Local Ollama AI Integration (`eagle.services.ai_provider.OllamaProvider`)**:
+  - Dedicated local AI reasoning provider connecting to Ollama daemon on `http://localhost:11434`.
+  - Local installation discovery via Windows registry and `%PATH%` (`is_installed()`).
+  - Daemon health check via `/api/version` (`is_server_running()`).
+  - Model discovery via `/api/tags` (`get_available_models()`).
+  - Dual tool-calling engine: native OpenAI-compatible structured schemas (`tools` parameter) with fallback inline JSON argument extraction.
+  - Granular error classification mapping unreachable server to actionable startup instructions and missing models to `ollama run <model>` suggestions.
+- **Strict Offline Security Policy (`eagle.core.exceptions.OfflinePolicyViolationError`)**:
+  - New configuration field `ai.offline_mode: bool = False`.
+  - Strictly blocks all outbound network requests to cloud AI services (OpenAI, Groq, custom external hosts), preventing accidental data leakage.
+- **Local Speech Recognition Model Caching (`eagle.services.stt.FasterWhisperSTT`)**:
+  - Dedicated model directory in `%LOCALAPPDATA%\EAGLE\models\whisper`.
+  - Model caching detection via `is_model_cached()` and `list_cached_models()`.
+  - `local_files_only: true` enforcement in offline mode raising `TranscriptionError` if models are not pre-downloaded.
+- **Local Windows SAPI5 Speech Synthesis (`eagle.services.tts.Pyttsx3TTSEngine`)**:
+  - Native Windows SAPI5 voice enumeration via `get_available_voices()`.
+  - Runtime voice selection, speaking rate, and volume adjustments.
+  - Immediate speech interruption on user barge-in.
+- **Local Wake-Word Model Discovery (`eagle.services.wake_word`)**:
+  - Automatic model discovery in `%LOCALAPPDATA%\EAGLE\models\wakeword` with sliding STT fallback.
+- **Desktop UI Status & Settings Integration**:
+  - `StatusPanelWidget` updated with real-time Ollama daemon status, model tag, and offline badge.
+  - `SettingsDialog` updated with SAPI5 voice selection dropdown and strict offline mode toggle.
+- **Automated Tests**:
+  - `tests/unit/test_ollama_provider.py`: 10 comprehensive unit tests covering lifecycle, health checks, model discovery, and tool calling.
+  - `tests/integration/test_offline_pipeline.py`: 7 comprehensive integration tests covering FasterWhisper local cache enforcement, SAPI5 voice control, wake-word state transitions, end-to-end voice-to-tool-to-TTS execution, provider disconnection recovery, cloud blocking, and UI settings persistence.
+  - Test suite expanded to 150 automated tests across 17 test modules with 100% pass rate.
+- **Deployment & Documentation**:
+  - `docs/OFFLINE_SETUP.md`: Complete guide for offline Ollama setup, model pulling, offline Whisper setup, and configuration.
+  - Standalone Windows 11 executable rebuilt with PyInstaller (`dist/EAGLE/EAGLE.exe`, SHA-256: `140f5a06576e4791a5a08d91a92ec822999aeb489bfdfe59c1821e2c06dd123a`).
+
+---
+
 ## [0.7.0] / [0.1.0] - 2026-11-05
 
 ### Added

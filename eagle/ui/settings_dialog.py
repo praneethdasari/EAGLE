@@ -114,6 +114,31 @@ class SettingsDialog(QDialog):
         tts_layout = QFormLayout(tts_group)
         tts_layout.setSpacing(10)
 
+        self._tts_voice_combo = QComboBox()
+        self._tts_voice_combo.addItem("default", "default")
+        try:
+            from eagle.services.tts import create_tts_engine
+
+            engine = create_tts_engine(self.config.audio)
+            for v in engine.get_available_voices():
+                vid = v.get("id", "")
+                vname = v.get("name", vid)
+                if vid and vid != "default":
+                    self._tts_voice_combo.addItem(f"{vname}", vid)
+        except Exception:
+            pass
+
+        # Select currently configured voice if present
+        cur_voice = self.config.audio.tts_voice
+        for i in range(self._tts_voice_combo.count()):
+            if (
+                self._tts_voice_combo.itemData(i) == cur_voice
+                or self._tts_voice_combo.itemText(i) == cur_voice
+            ):
+                self._tts_voice_combo.setCurrentIndex(i)
+                break
+        tts_layout.addRow("Voice:", self._tts_voice_combo)
+
         self._tts_rate = QSlider(Qt.Orientation.Horizontal)
         self._tts_rate.setRange(100, 300)
         self._tts_rate.setValue(self.config.audio.tts_rate)
@@ -150,7 +175,7 @@ class SettingsDialog(QDialog):
         ai_layout.setSpacing(10)
 
         self._ai_provider = QComboBox()
-        self._ai_provider.addItems(["mock", "openai", "groq", "ollama"])
+        self._ai_provider.addItems(["ollama", "openai", "groq", "mock"])
         idx = self._ai_provider.findText(self.config.ai.provider)
         if idx >= 0:
             self._ai_provider.setCurrentIndex(idx)
@@ -161,14 +186,30 @@ class SettingsDialog(QDialog):
 
         self._ai_base_url = QLineEdit(self.config.ai.base_url or "")
         self._ai_base_url.setPlaceholderText(
-            "https://api.openai.com/v1 (or Ollama http://localhost:11434/v1)"
+            "http://localhost:11434 (for Ollama) or https://api.openai.com/v1"
         )
         ai_layout.addRow("Base URL:", self._ai_base_url)
 
+        def _on_provider_changed(provider: str) -> None:
+            if provider.lower() == "ollama":
+                if not self._ai_base_url.text().strip():
+                    self._ai_base_url.setText("http://localhost:11434")
+                if not self._ai_model.text().strip() or self._ai_model.text().strip() in (
+                    "gpt-4o-mini",
+                    "mock-model",
+                ):
+                    self._ai_model.setText("qwen2.5:3b")
+
+        self._ai_provider.currentTextChanged.connect(_on_provider_changed)
+
         self._ai_key = QLineEdit(self.config.ai.api_key or "")
         self._ai_key.setEchoMode(QLineEdit.EchoMode.Password)
-        self._ai_key.setPlaceholderText("sk-... (optional for local models)")
+        self._ai_key.setPlaceholderText("sk-... (optional for local Ollama models)")
         ai_layout.addRow("API Key:", self._ai_key)
+
+        self._ai_offline_mode = QCheckBox("Strict Offline Mode (prohibit all external cloud calls)")
+        self._ai_offline_mode.setChecked(self.config.ai.offline_mode)
+        ai_layout.addRow(self._ai_offline_mode)
 
         self._ai_max_turns = QSpinBox()
         self._ai_max_turns.setRange(2, 50)
@@ -260,6 +301,9 @@ class SettingsDialog(QDialog):
         self.config.audio.wake_word_sensitivity = self._ww_sens.value() / 100.0
         self.config.audio.tts_rate = self._tts_rate.value()
         self.config.audio.tts_volume = self._tts_volume.value() / 100.0
+        self.config.audio.tts_voice = (
+            self._tts_voice_combo.currentData() or self._tts_voice_combo.currentText()
+        )
 
         # Update AI settings
         self.config.ai.provider = self._ai_provider.currentText()
@@ -270,6 +314,7 @@ class SettingsDialog(QDialog):
         self.config.ai.api_key = api_key if api_key else None
         self.config.ai.max_conversation_turns = self._ai_max_turns.value()
         self.config.ai.max_tool_iterations = self._ai_max_tools.value()
+        self.config.ai.offline_mode = self._ai_offline_mode.isChecked()
 
         # Update Security settings
         dirs: list[str] = [self._dirs_list.item(i).text() for i in range(self._dirs_list.count())]

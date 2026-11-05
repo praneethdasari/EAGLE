@@ -6,6 +6,7 @@ from eagle.core.exceptions import (
     AudioError,
     ConfigurationError,
     EagleError,
+    OfflinePolicyViolationError,
     SecurityViolationError,
     ToolError,
 )
@@ -29,6 +30,7 @@ __all__ = [
     "AudioError",
     "ToolError",
     "SecurityViolationError",
+    "OfflinePolicyViolationError",
     "get_logger",
     "setup_logging",
     "is_frozen",

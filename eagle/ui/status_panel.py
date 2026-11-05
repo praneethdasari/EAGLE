@@ -1,5 +1,7 @@
 """Status panel widget displaying assistant state, system telemetry, and active permissions."""
 
+from typing import Any
+
 import psutil
 from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import (
@@ -143,6 +145,14 @@ class StatusPanelWidget(QFrame):
         self._provider_label.setStyleSheet(f"font-size: 11px; color: {PALETTE.TEXT_SECONDARY};")
         config_layout.addWidget(self._provider_label)
 
+        self._offline_mode_badge = QLabel(
+            "🔒 Offline Mode Active" if self.config.ai.offline_mode else "🌐 Network Enabled"
+        )
+        self._offline_mode_badge.setStyleSheet(
+            f"font-size: 10px; font-weight: bold; color: {PALETTE.ACCENT_CYAN if self.config.ai.offline_mode else PALETTE.TEXT_MUTED};"
+        )
+        config_layout.addWidget(self._offline_mode_badge)
+
         app_count = len(self.config.security.allowed_applications)
         dir_count = len(self.config.security.allowed_directories)
         tools_summary = QLabel(f"Allowed: {app_count} Apps • {dir_count} Dirs")
@@ -203,6 +213,28 @@ class StatusPanelWidget(QFrame):
                 f"font-size: 13px; font-weight: bold; color: {PALETTE.ACCENT_RED};"
             )
             self._task_val.setText(reason or "Error occurred")
+
+    def update_ai_status(self, provider_status: dict[str, Any]) -> None:
+        """Dynamically update AI provider, model, and health status indicators."""
+        provider = str(provider_status.get("provider", "UNKNOWN")).upper()
+        model = str(provider_status.get("model", ""))
+        is_healthy = bool(provider_status.get("is_healthy", False))
+        offline = bool(provider_status.get("offline_mode", False))
+
+        self._provider_label.setText(f"AI: {provider} ({model})")
+        if is_healthy:
+            self._provider_label.setStyleSheet(f"font-size: 11px; color: {PALETTE.ACCENT_GREEN};")
+        else:
+            self._provider_label.setStyleSheet(f"font-size: 11px; color: {PALETTE.ACCENT_RED};")
+
+        if offline:
+            self._offline_mode_badge.setText("🔒 Strict Offline Mode")
+            self._offline_mode_badge.setStyleSheet(
+                f"font-size: 10px; font-weight: bold; color: {PALETTE.ACCENT_CYAN};"
+            )
+        else:
+            self._offline_mode_badge.setText("🌐 Network Enabled")
+            self._offline_mode_badge.setStyleSheet(f"font-size: 10px; color: {PALETTE.TEXT_MUTED};")
 
     def refresh_telemetry(self) -> None:
         """Query and display CPU and RAM metrics non-invasively."""

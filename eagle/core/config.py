@@ -7,6 +7,7 @@ from typing import Any
 from pydantic import BaseModel, Field, field_validator
 
 from eagle.core.exceptions import ConfigurationError, InvalidConfigError
+from eagle.core.paths import get_default_config_path
 
 
 class AudioConfig(BaseModel):
@@ -91,6 +92,10 @@ class AIConfig(BaseModel):
     max_tool_iterations: int = Field(
         default=3, ge=1, le=10, description="Maximum consecutive tool call loops per query"
     )
+    offline_mode: bool = Field(
+        default=False,
+        description="Enforce strict offline mode (prohibits cloud AI and network requests)",
+    )
 
 
 class SecurityConfig(BaseModel):
@@ -172,7 +177,7 @@ class EagleConfig(BaseModel):
         return self.audio
 
 
-DEFAULT_CONFIG_PATH = Path("config.json")
+DEFAULT_CONFIG_PATH = get_default_config_path()
 
 
 def is_path_within_allowed(target_path: Path | str, allowed_dirs: list[str]) -> bool:
@@ -201,7 +206,7 @@ def load_config(config_path: Path | str | None = None) -> EagleConfig:
     Raises:
         InvalidConfigError: If JSON syntax or schema validation fails.
     """
-    path = Path(config_path) if config_path else DEFAULT_CONFIG_PATH
+    path = Path(config_path) if config_path else get_default_config_path()
 
     if not path.exists():
         return EagleConfig()
@@ -222,7 +227,7 @@ def load_config(config_path: Path | str | None = None) -> EagleConfig:
 
 def save_config(config: EagleConfig, config_path: Path | str | None = None) -> None:
     """Save configuration object to disk as formatted JSON."""
-    path = Path(config_path) if config_path else DEFAULT_CONFIG_PATH
+    path = Path(config_path) if config_path else get_default_config_path()
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
         with open(path, "w", encoding="utf-8") as f:
