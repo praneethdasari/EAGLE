@@ -59,3 +59,14 @@ This document tracks significant architectural decisions for **EAGLE**.
   3. Provide a modular wake-word engine suite featuring offline sliding-window energy STT gating, optional `openwakeword` ONNX models, and a deterministic `MockWakeWordEngine` for automated CI testing.
   4. Implement trailing silence detection, command timeouts, and speech interruption / barge-in cancellation.
 - **Consequences**: Guarantees zero cloud telemetry for keyword detection, prevents race conditions across concurrent audio threads, suppresses self-echo, and enables rapid user interruption.
+
+---
+
+## ADR 007: EventBus-to-Qt Signal Bridge & Headless Offscreen Testing
+- **Date**: 2026-11-05
+- **Status**: Accepted
+- **Context**: In PySide6 desktop applications, updating GUI widgets directly from external threads (such as sounddevice audio callbacks, background speech-to-text workers, or AI network threads) causes race conditions and fatal access violations. Additionally, automated CI/CD and developer environments often run headlessly without physical display hardware.
+- **Decision**:
+  1. Implement `EventBusQtBridge(QObject)` which subscribes to thread-safe `EventBus` topics and re-emits them as typed Qt `Signal`s. Since Qt automatically marshals signals across threads using queued connections (`Qt.QueuedConnection`), UI widgets are updated exclusively on the main Qt GUI thread.
+  2. Implement a session-scoped `qapp` test fixture configured with `os.environ["QT_QPA_PLATFORM"] = "offscreen"` to enable 100% headless automated test execution without physical monitors.
+- **Consequences**: Guarantees UI thread safety, eliminates cross-thread GUI crashes, and enables full automated unit testing of widgets, visualizers, and dialogs in headless environments.

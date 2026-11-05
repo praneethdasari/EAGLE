@@ -215,11 +215,30 @@ def main(args: list[str] | None = None) -> int:
             print("\nShutting down EAGLE. Goodbye!")
         finally:
             listener.stop()
+        return 0
     else:
-        print("GUI mode selected. (Use --cli for interactive terminal mode).")
-        logger.info("EAGLE foundation initialized successfully.")
+        logger.info("Initializing EAGLE PySide6 Desktop Interface...")
+        from PySide6.QtWidgets import QApplication
 
-    return 0
+        from eagle.ui.main_window import MainWindow
+
+        # Start continuous listener if wake word listening is configured
+        if config.audio.wake_word_enabled:
+            listener.start()
+
+        app = QApplication.instance() or QApplication(args if args is not None else sys.argv)
+        window = MainWindow(
+            config=config,
+            event_bus=event_bus,
+            command_router=router,
+            ai_orchestrator=ai_orchestrator,
+            continuous_listener=listener,
+        )
+        window.show()
+        logger.info("EAGLE Desktop Interface running.")
+        exit_code = app.exec()
+        listener.stop()
+        return exit_code
 
 
 if __name__ == "__main__":

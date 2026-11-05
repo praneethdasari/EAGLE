@@ -25,6 +25,6 @@ This document maintains a truthful, verified status of all EAGLE capabilities. F
 | **Intelligence** | Conversation Memory & Context | **Completed** | Sliding-window context management, turn budgeting, baseline system persona preservation | `test_ai_provider.py` (3 tests pass) |
 | **Voice** | Wake Word Detection | **Completed** | Sliding STT energy gating, openWakeWord ONNX, and MockWakeWordEngine | `test_wake_word.py` (8 tests pass) |
 | **Voice** | Continuous Listening & State Machine | **Completed** | Thread-safe coordinator, legal state validation, trailing silence detection, speech barge-in interruption | `test_continuous_listener.py` (11 tests pass) |
-| **Interface** | PySide6 Desktop GUI | **Planned** | Dark eagle theme, audio visualizer, conversation history | Scheduled Milestone 6 |
+| **Interface** | PySide6 Desktop GUI | **Completed** | Dark eagle theme, audio visualizer, conversation feed, status sidebar, input bar, settings modal | `test_ui.py` (11 tests pass) |
 | **Release** | Standalone Packaging | **Planned** | Windows executable distribution | Scheduled Milestone 7 |
 

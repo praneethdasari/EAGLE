@@ -1,10 +1,23 @@
 """Shared pytest fixtures for the EAGLE test suite."""
 
 import json
+import os
 from pathlib import Path
 from typing import Any
 
 import pytest
+
+
+@pytest.fixture(scope="session")
+def qapp() -> Any:
+    """Session-scoped QApplication initialized in offscreen mode for headless UI testing."""
+    os.environ["QT_QPA_PLATFORM"] = "offscreen"
+    from PySide6.QtWidgets import QApplication
+
+    app = QApplication.instance()
+    if app is None:
+        app = QApplication(["-platform", "offscreen"])
+    return app
 
 
 @pytest.fixture

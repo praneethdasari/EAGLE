@@ -124,5 +124,5 @@ EAGLE executes verified desktop automation actions through a sandboxed tool regi
 - **Milestone 3**: Safe Desktop Actions & Automation (Completed)
 - **Milestone 4**: AI Reasoning & Tool Calling Orchestrator (Completed)
 - **Milestone 5**: Wake Word Detection & Continuous Listening (Completed)
-- **Milestone 6**: PySide6 Desktop GUI (In Progress)
-- **Milestone 7**: Release Hardening & Windows Executable Packaging (Planned)
+- **Milestone 6**: PySide6 Desktop GUI (Completed)
+- **Milestone 7**: Release Hardening & Windows Executable Packaging (In Progress)

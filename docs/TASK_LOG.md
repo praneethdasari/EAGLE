@@ -204,3 +204,60 @@ This document records completed development tasks, affected files, tests execute
 - **GitHub Push Target**: `origin/main` (`https://github.com/praneethdasari/EAGLE.git`)
 - **Status**: Completed
 
+---
+
+## Task 006: Polished EAGLE Desktop Interface (PySide6) (Milestone 6)
+- **Date**: 2026-11-05
+- **Architect/Engineer**: Google Antigravity (Lead Architect & Senior Developer)
+- **Objective**: Implement comprehensive, responsive PySide6 desktop interface for EAGLE featuring bespoke dark eagle styling, dynamic multi-bar audio visualizer, pulsing microphone state indicator, conversation history feed with formatted user/assistant bubbles and tool cards, status sidebar with live telemetry, typed input fallback bar, multi-tab preferences modal, thread-safe EventBus-to-Qt signal bridge, and full headless automated test coverage.
+- **Feature Name and Purpose**:
+  - Desktop Interface: Native Windows 11 GUI giving users full visual feedback, voice activity visualization, structured tool execution results, and runtime configuration controls.
+  - EventBus Bridge: Thread-safe forwarder decoupling background audio capture, model inference, and tool execution threads from Qt UI widgets.
+  - Audio Visualizer: Real-time 32-bar animated equalizer reacting to live microphone RMS amplitude with smooth decay.
+  - Settings Modal: 4-tab preferences editor for Voice, AI Models, Security Allowlists, and UI geometry with JSON persistence.
+- **Implementation Status**: Completed (100% verified with automated tests)
+- **Exact Source Code File Paths**:
+  - `eagle/ui/theme.py`: Eagle Dark palette (`#0B0E14` obsidian, `#151922` deep slate, `#00E5FF` cyber cyan, `#FFB300` eagle gold) and generated QSS stylesheet.
+  - `eagle/ui/visualizer.py`: Dynamic `AudioVisualizerWidget` with 32 bars, smooth interpolation, and `MicrophoneIndicatorWidget` state badge.
+  - `eagle/ui/conversation.py`: `ConversationFeedWidget`, `MessageBubble` (user/assistant styling), and `ToolExecutionCard` with status badges, parameter previews, and execution timers.
+  - `eagle/ui/status_panel.py`: `StatusPanelWidget` monitoring live CPU load, RAM usage, active AI provider/model, and tool permissions.
+  - `eagle/ui/input_bar.py`: `InputBarWidget` with typed input field, send button, microphone listening toggle button, and clear history button.
+  - `eagle/ui/settings_dialog.py`: `SettingsDialog` multi-tab preferences modal with JSON persistence via `save_config()`.
+  - `eagle/ui/bridge.py`: `EventBusQtBridge` forwarding `EventBus` occurrences to Qt signals thread-safely.
+  - `eagle/ui/main_window.py`: `MainWindow` orchestrating all widgets, keyboard shortcuts (`Ctrl+M`, `Ctrl+L`, `Ctrl+,`), background worker processing, and clean shutdown.
+  - `eagle/ui/__init__.py`: Exported all UI classes and theme constants.
+  - `eagle/main.py`: Integrated desktop GUI startup as primary entry point when `--cli` is not specified.
+  - `tests/conftest.py`: Added session-scoped headless `qapp` fixture (`QT_QPA_PLATFORM=offscreen`).
+  - `tests/unit/test_ui.py`: 11 unit tests covering all UI widgets, signal forwarding, settings saving, and lifecycle shutdown.
+- **Dependencies & Configuration Requirements**:
+  - `PySide6>=6.7.0` (official Qt for Python).
+  - `psutil` for non-invasive CPU/RAM metrics.
+  - Configuration via `EagleConfig.ui`.
+- **How the Feature Interacts With Other Modules**:
+  - `MainWindow` connects to `EventBus` via `EventBusQtBridge`.
+  - Audio amplitude events update `AudioVisualizerWidget`.
+  - Listening state transitions update `MicrophoneIndicatorWidget` and `StatusPanelWidget`.
+  - Speech transcription events and TTS output events populate `ConversationFeedWidget`.
+  - Tool execution completion events dynamically render `ToolExecutionCard` widgets.
+  - Typed input routes through `CommandRouter` and `AIOrchestrator` on a background thread.
+- **Tests Covering the Feature**:
+  - `tests/unit/test_ui.py` (11 tests covering theme, visualizer, bubbles, tool cards, feed, status panel, input bar, settings dialog, bridge, and main window lifecycle).
+  - Full suite: 128 tests passing in ~4.3s.
+- **Commands Required to Run and Verify It**:
+  - Tests: `.\.venv\Scripts\pytest.exe`
+  - Lint: `.\.venv\Scripts\ruff.exe check eagle tests`
+  - Format: `.\.venv\Scripts\ruff.exe format --check eagle tests`
+  - Type Check: `.\.venv\Scripts\mypy.exe eagle tests`
+  - Run GUI: `.\.venv\Scripts\python.exe -m eagle.main`
+- **Known Limitations & Outstanding Issues**:
+  - None. Runs headlessly in CI/sandbox via `offscreen` platform plugin.
+- **Next Logical Development Task**:
+  - Milestone 7: Packaging & Release Hardening (PyInstaller standalone executable build, end-to-end integration review, and v0.1.0 release tag).
+- **Tests Executed**:
+  - `pytest` (128/128 tests passing in 4.31s)
+  - `ruff check eagle tests` (All clean)
+  - `mypy eagle tests` (Success: no issues found in 48 source files)
+- **Git Commit**: `5a4a3ae` (`feat(ui): implement PySide6 desktop interface, dynamic visualizer, and event bridge`)
+- **GitHub Push Target**: `origin/main` (`https://github.com/praneethdasari/EAGLE.git`)
+- **Status**: Completed
+

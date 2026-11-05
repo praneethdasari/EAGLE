@@ -173,6 +173,21 @@ EAGLE/
   - `ContinuousListener`: Thread-safe coordinator running background command worker queue, detecting trailing silence and maximum command duration timeouts, suppressing self-speech, and interrupting TTS on user barge-in.
   - Broadcasts `WakeWordDetectedEvent`, `ListeningStateChangedEvent`, `AudioCaptureStartedEvent`, and `AudioCaptureStoppedEvent` across the `EventBus`.
 
+### 3.9 `eagle.ui` — PySide6 Desktop Interface
+- **Theme & Palette (`eagle/ui/theme.py`)**: Custom Eagle Dark aesthetic featuring deep obsidian (`#0B0E14`), deep slate (`#151922`), cyber cyan (`#00E5FF`), and eagle gold (`#FFB300`) with dynamic QSS stylesheet generation for all Qt widgets.
+- **Audio Visualizer & Microphone Indicator (`eagle/ui/visualizer.py`)**:
+  - `AudioVisualizerWidget`: Real-time 32-bar animated equalizer reacting to live microphone RMS amplitude with smooth decay interpolation.
+  - `MicrophoneIndicatorWidget`: Clickable pill badge with pulsating status glow for all assistant states (`LISTENING_FOR_WAKE_WORD`, `CAPTURING_COMMAND`, `PROCESSING_COMMAND`, `SPEAKING`, `IDLE`).
+- **Conversation History Feed (`eagle/ui/conversation.py`)**:
+  - `ConversationFeedWidget`: Scrollable container displaying formatted conversation bubbles and tool execution cards.
+  - `MessageBubble`: Differentiated user and assistant speech bubbles with timestamps and rich text formatting.
+  - `ToolExecutionCard`: Structured expandable card displaying tool names, execution duration, status badges, parameter previews, and structured output formatting.
+- **Status Panel (`eagle/ui/status_panel.py`)**: Live sidebar displaying current assistant state, system telemetry (CPU load and RAM utilization via `psutil`), active AI provider/model, and tool security permissions.
+- **Input Bar (`eagle/ui/input_bar.py`)**: Bottom docked fallback text entry bar with send button, microphone listening toggle button, and clear history controls.
+- **Settings Dialog (`eagle/ui/settings_dialog.py`)**: 4-tab preferences modal enabling runtime customization of Voice/Audio, AI Providers, Security Allowlists, and UI layout with JSON persistence via `save_config()`.
+- **EventBus Qt Bridge (`eagle/ui/bridge.py`)**: `EventBusQtBridge(QObject)` translating decoupled `EventBus` events into Qt signals, ensuring all UI updates occur safely on the main Qt GUI thread.
+- **Main Window (`eagle/ui/main_window.py`)**: Central window orchestrating all components, keyboard shortcuts (`Ctrl+M`, `Ctrl+L`, `Ctrl+,`), background worker processing, and clean application shutdown.
+
 ---
 
 ## 4. Concurrency & Threading Model

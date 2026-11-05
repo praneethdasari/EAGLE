@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.6.0] - 2026-11-05
+
+### Added
+- **PySide6 Desktop User Interface Subsystem (`eagle.ui`)**:
+  - `eagle.ui.theme`: Custom Eagle Dark aesthetic (`#0B0E14` obsidian, `#151922` deep slate, `#00E5FF` cyber cyan, `#FFB300` eagle gold) and generated QSS stylesheet for all Qt controls.
+  - `eagle.ui.visualizer`: Dynamic 32-bar audio reactive visualizer (`AudioVisualizerWidget`) with smooth decay interpolation, and pulsing state badge (`MicrophoneIndicatorWidget`).
+  - `eagle.ui.conversation`: Scrollable history feed (`ConversationFeedWidget`) with differentiated user and assistant speech bubbles (`MessageBubble`), and structured `ToolExecutionCard` widgets with duration badges, JSON parameters, and formatted results.
+  - `eagle.ui.status_panel`: Live sidebar (`StatusPanelWidget`) displaying assistant state, live CPU load, RAM utilization, active AI model, and security permissions.
+  - `eagle.ui.input_bar`: Fallback typed command bar (`InputBarWidget`) with send button, microphone listening toggle button, and clear history controls.
+  - `eagle.ui.settings_dialog`: 4-tab preferences modal dialog (`SettingsDialog`) enabling runtime customization of Voice/Audio, AI Providers, Security Allowlists, and UI layout with JSON persistence via `save_config()`.
+  - `eagle.ui.bridge`: Thread-safe `EventBusQtBridge` forwarder routing decoupled `EventBus` events to Qt UI signals without blocking worker threads.
+  - `eagle.ui.main_window`: Primary `MainWindow` orchestrating all widgets, keyboard shortcuts (`Ctrl+M`, `Ctrl+L`, `Ctrl+,`), background worker processing, and clean shutdown hooks.
+- **Application Startup & Integration (`eagle.main`)**:
+  - Integrated PySide6 GUI launch as the default mode when `--cli` is not specified.
+  - Added session-scoped headless `qapp` test fixture (`QT_QPA_PLATFORM=offscreen`) enabling 100% offline automated UI testing.
+- **Unit Test Suite Expansion**: Added 11 unit tests in `tests/unit/test_ui.py` covering all widgets, signal routing, settings persistence, and main window lifecycle, expanding test coverage to 128 tests passing (100% pass rate).
+
+---
+
 ## [0.5.0] - 2026-11-03
 
 ### Added

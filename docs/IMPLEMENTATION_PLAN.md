@@ -63,12 +63,12 @@ This roadmap tracks the development lifecycle of **EAGLE** (Enhanced Autonomous 
 ---
 
 ## Milestone 6: Polished EAGLE Desktop Interface (PySide6)
-- [ ] **6.1** Custom dark eagle-themed UI design (deep slate, obsidian, eagle gold/cyan accents).
-- [ ] **6.2** Microphone listening indicator & dynamic audio visualizer widget.
-- [ ] **6.3** Conversation history feed with formatted user/assistant bubbles and tool execution cards.
-- [ ] **6.4** Status panel: active tasks, permissions, system state.
-- [ ] **6.5** Settings dialog: voice selection, API provider configuration, directory whitelist manager, app registry editor.
-- [ ] **6.6** Text input bar fallback with send button and microphone toggle.
+- [x] **6.1** Custom dark eagle-themed UI design (deep slate, obsidian, eagle gold/cyan accents).
+- [x] **6.2** Microphone listening indicator & dynamic audio visualizer widget.
+- [x] **6.3** Conversation history feed with formatted user/assistant bubbles and tool execution cards.
+- [x] **6.4** Status panel: active tasks, permissions, system state.
+- [x] **6.5** Settings dialog: voice selection, API provider configuration, directory whitelist manager, app registry editor.
+- [x] **6.6** Text input bar fallback with send button and microphone toggle.
 
 ---
 
