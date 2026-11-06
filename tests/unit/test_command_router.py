@@ -7,6 +7,7 @@ from eagle.core.events import (
     StateChangedEvent,
     ToolExecutionRequestedEvent,
 )
+from eagle.core.paths import get_desktop_dir, get_documents_dir, get_downloads_dir
 from eagle.services.command_router import (
     CommandIntent,
     CommandRouter,
@@ -178,3 +179,56 @@ def test_event_bus_system_control_dispatch() -> None:
 
     assert len(state_changes) == 1
     assert state_changes[0].new_state == "IDLE"
+
+
+def test_known_folder_navigation_routing() -> None:
+    """Verify dynamic Known Folder navigation routes to FILE_OPERATION open_folder."""
+    router = CommandRouter()
+
+    # Downloads
+    r_dl = router.route("open downloads")
+    assert r_dl.intent == CommandIntent.FILE_OPERATION
+    assert r_dl.action_name == "open_folder"
+    assert r_dl.parameters["folder_name"] == "Downloads"
+    assert r_dl.parameters["folder_path"] == str(get_downloads_dir())
+
+    # Desktop
+    r_desk = router.route("show my desktop folder")
+    assert r_desk.intent == CommandIntent.FILE_OPERATION
+    assert r_desk.action_name == "open_folder"
+    assert r_desk.parameters["folder_name"] == "Desktop"
+    assert r_desk.parameters["folder_path"] == str(get_desktop_dir())
+
+    # Documents
+    r_docs = router.route("explore documents")
+    assert r_docs.intent == CommandIntent.FILE_OPERATION
+    assert r_docs.action_name == "open_folder"
+    assert r_docs.parameters["folder_name"] == "Documents"
+    assert r_docs.parameters["folder_path"] == str(get_documents_dir())
+
+
+def test_known_folder_dispatch_popen(monkeypatch) -> None:
+    """Verify dispatching open_folder launches explorer.exe and announces vocal confirmation."""
+    import subprocess
+
+    bus = EventBus()
+    spoken_events: list[SpeechOutputRequestedEvent] = []
+    bus.subscribe(SpeechOutputRequestedEvent, lambda e: spoken_events.append(e))
+
+    router = CommandRouter(event_bus=bus)
+    popen_args = []
+
+    def mock_popen(args, **kwargs):
+        popen_args.append(args)
+
+    monkeypatch.setattr(subprocess, "Popen", mock_popen)
+
+    route = router.route("open downloads")
+    router.dispatch(route)
+
+    assert len(popen_args) == 1
+    assert popen_args[0][0] == "explorer.exe"
+    assert popen_args[0][1] == str(get_downloads_dir())
+    assert len(spoken_events) == 1
+    assert "Opening Downloads in File Explorer." in spoken_events[0].text
+

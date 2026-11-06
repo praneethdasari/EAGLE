@@ -20,6 +20,7 @@ from eagle.core.events import (
 from eagle.core.exceptions import (
     AIProviderError,
     AuthenticationError,
+    ConfigurationError,
     InvalidResponseError,
     ModelUnavailableError,
     NetworkTimeoutError,
@@ -31,6 +32,7 @@ from eagle.services.ai_provider import (
     ChatMessage,
     ConversationManager,
     MockAIProvider,
+    OllamaProvider,
     OpenAICompatibleProvider,
     ToolCall,
     get_ai_provider,
@@ -489,7 +491,14 @@ def test_ai_orchestrator_graceful_error_handling() -> None:
 
 
 def test_get_ai_provider_factory() -> None:
-    """Verify factory returns appropriate provider implementation."""
+    """Verify factory returns appropriate provider implementation and rejects unrecognized providers."""
+    # Default is now Ollama (never silent mock)
+    p_default = get_ai_provider(EagleConfig())
+    assert isinstance(p_default, OllamaProvider)
+
+    p_auto = get_ai_provider(EagleConfig(ai=AIConfig(provider="auto")))
+    assert isinstance(p_auto, OllamaProvider)
+
     p_mock = get_ai_provider(EagleConfig(ai=AIConfig(provider="mock")))
     assert isinstance(p_mock, MockAIProvider)
 
@@ -500,7 +509,12 @@ def test_get_ai_provider_factory() -> None:
     assert isinstance(p_groq, OpenAICompatibleProvider)
 
     p_ollama = get_ai_provider(EagleConfig(ai=AIConfig(provider="ollama")))
-    assert isinstance(p_ollama, OpenAICompatibleProvider)
+    assert isinstance(p_ollama, OllamaProvider)
+
+    # Unrecognized provider raises ConfigurationError (never silent mock)
+    with pytest.raises(ConfigurationError) as exc_info:
+        get_ai_provider(EagleConfig(ai=AIConfig(provider="unknown_fake_provider")))
+    assert "Unsupported or unrecognized AI provider" in str(exc_info.value)
 
 
 def test_command_router_ai_fallback_and_conversation() -> None:

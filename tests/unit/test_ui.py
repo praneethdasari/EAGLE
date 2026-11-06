@@ -138,9 +138,11 @@ def test_conversation_feed_widget(qapp: Any) -> None:
     """Verify adding messages and cards to ConversationFeedWidget and clearing."""
     feed = ConversationFeedWidget()
     assert feed._layout.count() == 1  # Only trailing stretch item initially
+    assert feed._auto_scroll_enabled is True
 
     feed.add_user_message("Hello EAGLE")
     assert feed._layout.count() == 2
+    assert feed._auto_scroll_enabled is True
 
     feed.add_assistant_message("Greetings! How can I help?")
     assert feed._layout.count() == 3
@@ -148,8 +150,18 @@ def test_conversation_feed_widget(qapp: Any) -> None:
     feed.add_tool_card("system_info", {}, "CPU: 12%", True, 0.02)
     assert feed._layout.count() == 4
 
+    # Test manual scroll detection
+    feed.verticalScrollBar().setMaximum(500)
+    feed.verticalScrollBar().setValue(100)  # User scrolled up
+    assert feed._auto_scroll_enabled is False
+
+    # Adding user message re-enables auto-scroll
+    feed.add_user_message("Next question")
+    assert feed._auto_scroll_enabled is True
+
     feed.clear_feed()
     assert feed._layout.count() == 1  # All items removed except trailing stretch
+    assert feed._auto_scroll_enabled is True
 
 
 def test_status_panel_widget(qapp: Any) -> None:

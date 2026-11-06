@@ -179,7 +179,10 @@ def main(args: list[str] | None = None) -> int:
 
                 # CLI shortcut commands
                 if user_input in (":listen", ":wake"):
-                    if listener.state == AssistantState.LISTENING_FOR_WAKE_WORD:
+                    if listener.state in (
+                        AssistantState.SLEEPING,
+                        AssistantState.LISTENING_FOR_WAKE_WORD,
+                    ):
                         listener.stop()
                         print("[Continuous Listening]: Paused / Stopped.")
                     else:
@@ -220,11 +223,20 @@ def main(args: list[str] | None = None) -> int:
         logger.info("Initializing EAGLE PySide6 Desktop Interface...")
         from PySide6.QtWidgets import QApplication
 
+        from eagle.services.startup import SingleInstanceManager, WindowsStartupManager
         from eagle.ui.main_window import MainWindow
 
-        # Start continuous listener if wake word listening is configured
-        if config.audio.wake_word_enabled:
-            listener.start()
+        # Single instance protection
+        instance_lock = SingleInstanceManager()
+        if not instance_lock.acquire():
+            logger.warning("Another instance of EAGLE is already active. Exiting.")
+            print("[EAGLE]: Another instance is already active.")
+            return 0
+
+        # Automatic Windows startup configuration
+        if getattr(config.audio, "start_with_windows", True):
+            if not WindowsStartupManager.is_startup_enabled():
+                WindowsStartupManager.enable_startup()
 
         app = QApplication.instance() or QApplication(args if args is not None else sys.argv)
         window = MainWindow(
@@ -236,8 +248,11 @@ def main(args: list[str] | None = None) -> int:
         )
         window.show()
         logger.info("EAGLE Desktop Interface running.")
-        exit_code = app.exec()
-        listener.stop()
+        try:
+            exit_code = app.exec()
+        finally:
+            listener.stop()
+            instance_lock.release()
         return exit_code
 
 

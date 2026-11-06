@@ -1,8 +1,10 @@
 """Reliable voice and text command recognition, intent parsing, and routing for EAGLE."""
 
 import re
+import subprocess
 from dataclasses import dataclass, field
 from enum import StrEnum
+from pathlib import Path
 from typing import Any
 
 from eagle.core.config import EagleConfig, SecurityConfig
@@ -15,6 +17,7 @@ from eagle.core.events import (
     ToolExecutionRequestedEvent,
 )
 from eagle.core.logging import get_logger
+from eagle.core.paths import get_desktop_dir, get_documents_dir, get_downloads_dir
 from eagle.tools.registry import ToolRegistry
 
 logger = get_logger("services.command_router")
@@ -113,7 +116,12 @@ class CommandRouter:
         if system_control_route:
             return system_control_route
 
-        # 2. Application Launch
+        # 2. Windows Known Folder Navigation (Desktop, Documents, Downloads)
+        folder_route = self._check_known_folder_open(normalized, raw_text)
+        if folder_route:
+            return folder_route
+
+        # 3. Application Launch
         app_route = self._check_app_launch(normalized, raw_text)
         if app_route:
             return app_route
@@ -174,6 +182,34 @@ class CommandRouter:
                 confidence=1.0,
                 matched_rule="system_control",
             )
+        return None
+
+    def _check_known_folder_open(self, text: str, raw: str) -> CommandRoute | None:
+        """Matches requests to open Windows Known Folders: downloads, documents, desktop."""
+        match = re.match(
+            r"^(?:open|show|view|explore|browse)(?:\s+my)?(?:\s+the)?\s+(downloads?|documents?|desktop)(?:\s+folder|\s+directory)?$",
+            text,
+            flags=re.IGNORECASE,
+        )
+        if match:
+            target = match.group(1).lower().rstrip("s")
+            folder_map = {
+                "download": (get_downloads_dir(), "Downloads"),
+                "document": (get_documents_dir(), "Documents"),
+                "desktop": (get_desktop_dir(), "Desktop"),
+            }
+            folder_info = folder_map.get(target)
+            if folder_info:
+                folder_path, display_name = folder_info
+                return CommandRoute(
+                    intent=CommandIntent.FILE_OPERATION,
+                    raw_text=raw,
+                    normalized_text=text,
+                    action_name="open_folder",
+                    parameters={"folder_path": str(folder_path), "folder_name": display_name},
+                    confidence=0.98,
+                    matched_rule="known_folder_open",
+                )
         return None
 
     def _check_app_launch(self, text: str, raw: str) -> CommandRoute | None:
@@ -387,6 +423,28 @@ class CommandRouter:
 
         if route.intent == CommandIntent.FILE_OPERATION:
             action = route.action_name or "list_files"
+            if action == "open_folder":
+                folder_path = route.parameters.get("folder_path", "")
+                folder_name = route.parameters.get("folder_name", "Folder")
+                if folder_path and Path(folder_path).exists():
+                    try:
+                        subprocess.Popen(["explorer.exe", str(folder_path)])
+                        self.event_bus.publish(
+                            SpeechOutputRequestedEvent(
+                                text=f"Opening {folder_name} in File Explorer."
+                            )
+                        )
+                    except Exception as exc:
+                        logger.error("Failed to open folder %s: %s", folder_path, exc)
+                        self.event_bus.publish(
+                            SpeechOutputRequestedEvent(text=f"Could not open {folder_name}.")
+                        )
+                else:
+                    self.event_bus.publish(
+                        SpeechOutputRequestedEvent(text=f"{folder_name} directory not found.")
+                    )
+                return
+
             if action == "inspect_file":
                 path = route.parameters.get("path", "")
                 self.event_bus.publish(SpeechOutputRequestedEvent(text=f"Inspecting file {path}."))

@@ -21,7 +21,7 @@ def test_default_config_instantiation() -> None:
     assert config.version == "0.1.0"
     assert config.audio.sample_rate == 16000
     assert config.audio.channels == 1
-    assert config.ai.provider == "mock"
+    assert config.ai.provider == "ollama"
     assert config.security.confirm_sensitive_actions is True
     assert "notepad" in config.security.allowed_applications
 

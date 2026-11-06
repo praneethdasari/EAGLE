@@ -59,6 +59,7 @@ hiddenimports = [
     "eagle.services.continuous_listener",
     "eagle.services.ai_provider",
     "eagle.services.command_router",
+    "eagle.services.startup",
     "eagle.tools",
     "eagle.tools.base",
     "eagle.tools.registry",

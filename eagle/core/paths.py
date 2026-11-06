@@ -96,3 +96,37 @@ def get_models_dir() -> Path:
     except OSError:
         pass
     return models_dir
+
+
+def get_known_folder(folder_name: str, fallback_relative_to_home: str) -> Path:
+    """Dynamically resolve Windows Known Folders via User Shell Folders registry or fallback."""
+    if sys.platform == "win32":
+        try:
+            import winreg
+
+            key_path = r"Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders"
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, key_path) as key:
+                raw_val, _ = winreg.QueryValueEx(key, folder_name)
+                expanded = os.path.expandvars(str(raw_val))
+                target = Path(expanded).resolve()
+                if target.exists():
+                    return target
+        except Exception:
+            pass
+    return (Path.home() / fallback_relative_to_home).resolve()
+
+
+def get_desktop_dir() -> Path:
+    """Return user's Desktop directory, dynamically resolving relocated drives (e.g. E:\\Desktop)."""
+    return get_known_folder("Desktop", "Desktop")
+
+
+def get_documents_dir() -> Path:
+    """Return user's Documents directory, dynamically resolving relocated drives."""
+    return get_known_folder("Personal", "Documents")
+
+
+def get_downloads_dir() -> Path:
+    """Return user's Downloads directory, dynamically resolving relocated drives."""
+    return get_known_folder("{374DE290-123F-4565-9164-39C4925E467B}", "Downloads")
+

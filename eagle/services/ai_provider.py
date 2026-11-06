@@ -22,6 +22,7 @@ from eagle.core.events import (
 from eagle.core.exceptions import (
     AIProviderError,
     AuthenticationError,
+    ConfigurationError,
     InvalidResponseError,
     ModelUnavailableError,
     NetworkTimeoutError,
@@ -544,11 +545,12 @@ class OllamaProvider(OpenAICompatibleProvider):
         if shutil.which("ollama") is not None:
             return True
 
+        standard_paths: list[Path] = []
+        for pf_env in ("ProgramFiles", "ProgramFiles(x86)", "ProgramW6432"):
+            pf_val = os.environ.get(pf_env)
+            if pf_val:
+                standard_paths.append(Path(pf_val) / "Ollama" / "ollama.exe")
         local_appdata = os.environ.get("LOCALAPPDATA")
-        standard_paths = [
-            Path("C:/Program Files/Ollama/ollama.exe"),
-            Path("C:/Program Files (x86)/Ollama/ollama.exe"),
-        ]
         if local_appdata:
             standard_paths.append(Path(local_appdata) / "Programs" / "Ollama" / "ollama.exe")
 
@@ -590,6 +592,37 @@ class OllamaProvider(OpenAICompatibleProvider):
                 return True
 
         return False
+
+    def discover_active_model(self) -> str:
+        """Auto-discover the most suitable active model on the local Ollama server."""
+        if not self.is_server_running():
+            return self.model_name
+
+        models = self.get_available_models()
+        if not models:
+            return self.model_name
+
+        # If configured model is already available, preserve it
+        if self.is_model_available(self.model_name):
+            return self.model_name
+
+        # Preferred local model families: qwen, llama, mistral, deepseek, phi
+        preferred_prefixes = ("qwen", "llama", "mistral", "deepseek", "phi")
+        for pref in preferred_prefixes:
+            for m in models:
+                if m.lower().startswith(pref):
+                    logger.info(
+                        "Auto-discovered installed Ollama model '%s' matching preference '%s'",
+                        m,
+                        pref,
+                    )
+                    self.model_name = m
+                    return m
+
+        # Fallback to first available model installed in Ollama
+        logger.info("Auto-discovered installed Ollama model: '%s'", models[0])
+        self.model_name = models[0]
+        return self.model_name
 
     def check_health(self) -> tuple[bool, str]:
         """Perform comprehensive health check on Ollama runtime."""
@@ -837,14 +870,18 @@ def get_ai_provider(config: EagleConfig | None = None) -> BaseAIProvider:
     if provider_name == "mock":
         return MockAIProvider(config=cfg.ai)
 
-    if provider_name == "ollama":
-        return OllamaProvider(config=cfg.ai)
+    if provider_name in ("ollama", "auto"):
+        ollama = OllamaProvider(config=cfg.ai)
+        ollama.discover_active_model()
+        return ollama
 
     if provider_name in ("openai", "groq", "openai_compatible"):
         return OpenAICompatibleProvider(config=cfg.ai)
 
-    logger.warning("Unrecognized AI provider '%s', defaulting to MockAIProvider.", provider_name)
-    return MockAIProvider(config=cfg.ai)
+    raise ConfigurationError(
+        f"Unsupported or unrecognized AI provider '{provider_name}'. "
+        "Valid options: 'ollama', 'auto', 'openai', 'groq', 'mock' (test only)."
+    )
 
 
 class AIOrchestrator:

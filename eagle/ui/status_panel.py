@@ -188,11 +188,19 @@ class StatusPanelWidget(QFrame):
                 f"font-size: 13px; font-weight: bold; color: {PALETTE.TEXT_SECONDARY};"
             )
             self._task_val.setText("Ready for commands")
-        elif state == AssistantState.LISTENING_FOR_WAKE_WORD.value:
+        elif state in (
+            AssistantState.SLEEPING.value,
+            AssistantState.LISTENING_FOR_WAKE_WORD.value,
+        ):
             self._state_val.setStyleSheet(
                 f"font-size: 13px; font-weight: bold; color: {PALETTE.ACCENT_CYAN};"
             )
-            self._task_val.setText("Waiting for 'Hey EAGLE'...")
+            self._task_val.setText("Sleeping (Waiting for 'Hey EAGLE')...")
+        elif state == AssistantState.ACTIVE.value:
+            self._state_val.setStyleSheet(
+                f"font-size: 13px; font-weight: bold; color: {PALETTE.ACCENT_CYAN};"
+            )
+            self._task_val.setText("Active (Waking up)...")
         elif state == AssistantState.CAPTURING_COMMAND.value:
             self._state_val.setStyleSheet(
                 f"font-size: 13px; font-weight: bold; color: {PALETTE.ACCENT_GOLD};"
@@ -208,6 +216,16 @@ class StatusPanelWidget(QFrame):
                 f"font-size: 13px; font-weight: bold; color: {PALETTE.ACCENT_CYAN};"
             )
             self._task_val.setText("Speaking response...")
+        elif state == AssistantState.AWAITING_FOLLOWUP.value:
+            self._state_val.setStyleSheet(
+                f"font-size: 13px; font-weight: bold; color: {PALETTE.ACCENT_GOLD};"
+            )
+            self._task_val.setText("Awaiting follow-up (5s)...")
+        elif state == AssistantState.PRIVACY_MUTED.value:
+            self._state_val.setStyleSheet(
+                f"font-size: 13px; font-weight: bold; color: {PALETTE.ACCENT_RED};"
+            )
+            self._task_val.setText("Mic Muted (Privacy Mode)")
         elif state == AssistantState.ERROR.value:
             self._state_val.setStyleSheet(
                 f"font-size: 13px; font-weight: bold; color: {PALETTE.ACCENT_RED};"

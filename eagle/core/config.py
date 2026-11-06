@@ -7,7 +7,10 @@ from typing import Any
 from pydantic import BaseModel, Field, field_validator
 
 from eagle.core.exceptions import ConfigurationError, InvalidConfigError
-from eagle.core.paths import get_default_config_path
+from eagle.core.paths import (
+    get_default_config_path,
+    get_documents_dir,
+)
 
 
 class AudioConfig(BaseModel):
@@ -26,7 +29,7 @@ class AudioConfig(BaseModel):
     tts_rate: int = Field(default=175, ge=50, le=400, description="TTS words per minute")
     tts_volume: float = Field(default=1.0, ge=0.0, le=1.0, description="TTS volume")
     wake_word_enabled: bool = Field(
-        default=False, description="Whether wake word listening is enabled"
+        default=True, description="Whether wake word listening is enabled"
     )
     wake_word_phrase: str = Field(default="hey eagle", description="Wake word phrase")
     wake_word_engine: str = Field(
@@ -52,6 +55,24 @@ class AudioConfig(BaseModel):
         default=True,
         description="Whether to resume listening for wake word automatically after command processing",
     )
+    followup_timeout_seconds: float = Field(
+        default=5.0,
+        ge=2.0,
+        le=30.0,
+        description="Duration of follow-up response window in seconds before returning to sleep",
+    )
+    user_title: str = Field(
+        default="boss",
+        description="User honorific/title used in spoken interactions (e.g. 'boss')",
+    )
+    startup_greeting: bool = Field(
+        default=True,
+        description="Deliver time-based spoken greeting upon Windows startup",
+    )
+    start_with_windows: bool = Field(
+        default=True,
+        description="Automatically start EAGLE upon Windows user sign-in",
+    )
 
 
 # Alias for backward and voice-subsystem compatibility
@@ -62,10 +83,10 @@ class AIConfig(BaseModel):
     """AI reasoning engine configuration."""
 
     provider: str = Field(
-        default="mock",
-        description="Active AI provider ('mock', 'openai', 'gemini', 'anthropic', 'groq', 'ollama')",
+        default="ollama",
+        description="Active AI provider ('ollama', 'auto', 'openai', 'gemini', 'anthropic', 'groq', 'mock')",
     )
-    model_name: str = Field(default="gpt-4o-mini", description="Model identifier")
+    model_name: str = Field(default="qwen2.5:3b", description="Model identifier")
     temperature: float = Field(default=0.7, ge=0.0, le=2.0, description="Sampling temperature")
     max_tokens: int = Field(default=1024, ge=1, le=8192, description="Maximum generation tokens")
     system_prompt: str = Field(
@@ -102,7 +123,7 @@ class SecurityConfig(BaseModel):
     """Security boundaries, allowlists, and permission policies."""
 
     allowed_directories: list[str] = Field(
-        default_factory=lambda: [str(Path.home() / "Documents"), str(Path.cwd())],
+        default_factory=lambda: [str(get_documents_dir()), str(Path.cwd())],
         description="Directories where file operations are authorized",
     )
     allowed_applications: dict[str, str] = Field(
@@ -136,9 +157,12 @@ class SecurityConfig(BaseModel):
         resolved: list[str] = []
         for d in dirs:
             try:
-                resolved.append(str(Path(d).resolve()))
+                res_path = str(Path(d).resolve())
+                if res_path not in resolved:
+                    resolved.append(res_path)
             except Exception:
-                resolved.append(d)
+                if d not in resolved:
+                    resolved.append(d)
         return resolved
 
 

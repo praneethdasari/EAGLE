@@ -30,7 +30,12 @@ This document maintains a truthful, verified status of all EAGLE capabilities. F
 | **Testing** | End-to-End Pipeline Verification | **Completed** | Full voice-to-tool loop, wake word FSM transitions, AI tool calling, security sandbox defense, PySide6 GUI EventBus bridge | 	est_end_to_end.py (5 tests pass) |
 
 | **Intelligence** | Ollama Local AI Integration | **Completed** | Full OllamaProvider with installation check, server ping, model discovery (/api/tags), health diagnostics, native and inline tool calling | test_ollama_provider.py (10 tests pass) |
+| **Intelligence** | Ollama Auto-Discovery & Health Enforcement | **Completed** | Auto-probes local models, rejects silent mock fallbacks in normal operation, surfaces setup diagnostics | test_ai_provider.py, test_ollama_provider.py |
 | **Security** | Strict Offline Mode Policy | **Completed** | OfflinePolicyViolationError strictly prohibiting external cloud requests when offline_mode: true | test_ollama_provider.py, test_offline_pipeline.py |
+| **Security** | Dynamic Known Folder Resolution & Least-Privilege | **Completed** | Resolves moved Desktop, Documents, Downloads via Windows Registry; restricts programmatic tool sandbox to user documents and CWD | test_config.py, test_command_router.py |
 | **Voice** | Local Offline Speech Recognition | **Completed** | FasterWhisperSTT enforcing local_files_only=True in offline mode, model cache management | test_offline_pipeline.py (7 tests pass) |
 | **Voice** | Local SAPI5 Voice Selection | **Completed** | Pyttsx3TTSEngine voice enumeration (get_available_voices), rate, volume, interruptibility | test_offline_pipeline.py |
+| **Voice** | Master Interaction Lifecycle & Wake-Word State Machine | **Completed** | Time-based greeting, SLEEPING state, wake activation ("Yes boss! How can I help you?"), 5s follow-up window ("Boss! Is there anything I can help you with?"), and physical mic privacy toggle | test_continuous_listener.py, test_startup.py |
+| **Interface** | Conversation Feed Smart Auto-Scroll | **Completed** | Smooth auto-scroll on new messages; suppresses autojump when user manually scrolls up | test_ui.py |
 | **Interface** | Offline Diagnostic Status Panel | **Completed** | Real-time Ollama connection badge, active local model display, strict offline indicator | MainWindow, StatusPanelWidget |
+| **System** | Windows Startup & Single-Instance Lock | **Completed** | HKCU Run registry manager, single-instance mutex lockfile in %APPDATA%/EAGLE/eagle.lock | test_startup.py (4 tests pass) |

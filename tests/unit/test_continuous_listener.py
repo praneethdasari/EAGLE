@@ -139,7 +139,7 @@ def test_continuous_listener_wake_word_disabled_start() -> None:
 
 
 def test_continuous_listener_wake_word_trigger_event() -> None:
-    """Verify that wake-word detection transitions from LISTENING_FOR_WAKE_WORD to CAPTURING_COMMAND."""
+    """Verify that wake-word detection initiates activation greeting then transitions to CAPTURING_COMMAND."""
     config = EagleConfig(voice=VoiceConfig(wake_word_enabled=True, wake_word_engine="mock"))
     event_bus = EventBus()
     wake_events: list[WakeWordDetectedEvent] = []
@@ -156,16 +156,20 @@ def test_continuous_listener_wake_word_trigger_event() -> None:
     )
 
     listener.start()
-    assert listener.state == AssistantState.LISTENING_FOR_WAKE_WORD
+    assert listener.state in (AssistantState.LISTENING_FOR_WAKE_WORD, AssistantState.SLEEPING)
 
     # Trigger wake word programmatically and feed simulated chunk
     wake_word.trigger()
     listener.feed_simulated_audio(b"\x00" * 640)
 
-    # Verify transition and events
-    assert listener.state == AssistantState.CAPTURING_COMMAND
+    # Section 5.4: Immediately after wake-word detection, assistant speaks greeting ("Yes boss! How can I help you?")
+    assert listener.state == AssistantState.SPEAKING
     assert len(wake_events) == 1
     assert wake_events[0].wake_phrase == "hey eagle"
+
+    # Once activation speech finishes, assistant enters CAPTURING_COMMAND
+    event_bus.publish(SpeechOutputFinishedEvent(text="Yes boss! How can I help you?"))
+    assert listener.state == AssistantState.CAPTURING_COMMAND
     assert any(e.mode == "command" for e in capture_events)
 
     listener.stop()
@@ -198,11 +202,13 @@ def test_continuous_listener_self_speech_suppression() -> None:
     # State should remain SPEAKING; self-speech suppression ignored the chunk
     assert listener.state == AssistantState.SPEAKING
 
-    # Now speech output finishes
+    # Now speech output finishes -> transitions to AWAITING_FOLLOWUP (5-second follow-up window)
     event_bus.publish(SpeechOutputFinishedEvent(text="Finished speaking"))
+    assert listener.state == AssistantState.AWAITING_FOLLOWUP
 
-    # State transitions back to LISTENING_FOR_WAKE_WORD
-    assert listener.state == AssistantState.LISTENING_FOR_WAKE_WORD
+    # When follow-up window times out without user speech, returns to SLEEPING
+    listener._on_followup_timeout()
+    assert listener.state in (AssistantState.SLEEPING, AssistantState.LISTENING_FOR_WAKE_WORD)
     listener.stop()
 
 
@@ -281,6 +287,9 @@ def test_continuous_listener_command_timeout_processing() -> None:
     listener.start()
     wake_word.trigger()
     listener.feed_simulated_audio(b"\x00" * 640)
+
+    # Acknowledge activation speech to transition to CAPTURING_COMMAND
+    event_bus.publish(SpeechOutputFinishedEvent(text="Yes boss! How can I help you?"))
     assert listener.state == AssistantState.CAPTURING_COMMAND
 
     # Feed 1.5 seconds of simulated PCM to exceed command_timeout_seconds (1.0s)
@@ -290,6 +299,54 @@ def test_continuous_listener_command_timeout_processing() -> None:
     # Should have transitioned to PROCESSING_COMMAND
     assert listener.state in (
         AssistantState.PROCESSING_COMMAND,
+        AssistantState.SLEEPING,
         AssistantState.LISTENING_FOR_WAKE_WORD,
     )
+    listener.stop()
+
+
+def test_continuous_listener_privacy_mode_toggle() -> None:
+    """Verify hardware/software microphone privacy mode completely stops audio capture and ignores input."""
+    config = EagleConfig(voice=VoiceConfig(wake_word_enabled=True, wake_word_engine="mock"))
+    wake_word = MockWakeWordEngine()
+    listener = ContinuousListener(config=config, wake_word_engine=wake_word)
+
+    listener.start()
+    assert listener.state in (AssistantState.LISTENING_FOR_WAKE_WORD, AssistantState.SLEEPING)
+
+    # Enable privacy mode
+    listener.set_privacy_mode(True)
+    assert listener.is_privacy_mode() is True
+    assert listener.state == AssistantState.PRIVACY_MUTED
+
+    # In privacy mode, wake word detection must be strictly ignored
+    wake_word.trigger()
+    listener.feed_simulated_audio(b"\x00" * 640)
+    assert listener.state == AssistantState.PRIVACY_MUTED
+
+    # Disable privacy mode -> restores listening
+    listener.set_privacy_mode(False)
+    assert listener.is_privacy_mode() is False
+    assert listener.state in (AssistantState.SLEEPING, AssistantState.LISTENING_FOR_WAKE_WORD)
+
+    listener.stop()
+
+
+def test_continuous_listener_followup_window_speech_resumes_capture() -> None:
+    """Verify that user speech during 5-second follow-up window cancels timer and captures next command."""
+    config = EagleConfig(voice=VoiceConfig(wake_word_enabled=True))
+    event_bus = EventBus()
+    listener = ContinuousListener(config=config, event_bus=event_bus)
+
+    listener.start()
+    # Transition to SPEAKING then simulate finish to enter AWAITING_FOLLOWUP
+    listener.transition_to(AssistantState.SPEAKING)
+    event_bus.publish(SpeechOutputFinishedEvent(text="Task completed."))
+
+    assert listener.state == AssistantState.AWAITING_FOLLOWUP
+
+    # Feeding active speech chunk (non-zero PCM) during follow-up resumes command capture
+    listener.feed_simulated_audio(b"\x7f\x10\x80\xef" * 500)
+    assert listener.state == AssistantState.CAPTURING_COMMAND
+
     listener.stop()

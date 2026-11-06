@@ -378,3 +378,52 @@ uff check eagle tests scripts (All clean)
 - **Git Commit**: `0f100d0` (`feat(offline): complete Milestone 8 Ollama local AI integration, offline pipelines, and deployment hardening`)
 - **GitHub Push Target**: `origin/main` (`https://github.com/praneethdasari/EAGLE.git`)
 - **Status**: Completed
+
+---
+
+## Task 009: Real-World Repair, Dynamic Known Folders, Interaction Lifecycle, and Ollama Auto-Discovery (Milestones 8.1.2–8.1.5)
+- **Date**: 2026-11-06
+- **Architect/Engineer**: Google Antigravity (Lead Architect & Senior Developer)
+- **Objective**: Deliver complete Milestone 8.1 real-world repairs and interaction lifecycle per Unified Master Prompt:
+  1. Relocate and dynamically resolve Windows Desktop (`E:\Desktop`), Documents (`E:\Documents`), and Downloads (`E:\Downloads`) via Windows Registry `User Shell Folders` while preserving least-privilege sandboxing.
+  2. Implement genuine Ollama auto-discovery, dynamic model probing (`qwen2.5:3b`, `llama3.2:3b`), and eliminate silent mock fallbacks in normal operation.
+  3. Implement smart conversation auto-scrolling in PySide6 `ConversationFeedWidget` that smoothly anchors to bottom during assistant output while respecting manual scroll-up inspection.
+  4. Implement exact Section 5 master interaction lifecycle:
+     - Time-based login greeting ("Good morning/afternoon/evening/night, boss!").
+     - Session greeting deduplication via `SessionGreetingTracker`.
+     - Automatic Windows startup via `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`.
+     - Single-instance protection with `%APPDATA%\EAGLE\eagle.lock` file locking.
+     - `AssistantState.SLEEPING` as default continuous listening mode.
+     - Wake-word detection triggering `AssistantState.ACTIVE` and vocal acknowledgement: `"Yes boss! How can I help you?"`.
+     - Task completion triggering vocal response and follow-up prompt: `"Boss! Is there anything I can help you with?"`.
+     - 5.0-second response window (`AssistantState.AWAITING_FOLLOWUP`) returning to `SLEEPING` on silence or capturing follow-up command on voice activity.
+     - Physical microphone privacy mode (`AssistantState.PRIVACY_MUTED`).
+  5. Dynamic Known Folder navigation in `CommandRouter` dispatching `explorer.exe <path>` for "open downloads", "open desktop", "show documents".
+  6. Zero file deletions on C: or E: drive.
+  7. 100% test passing (159 tests), 0 Ruff errors, 0 Mypy errors across 33 source files.
+  8. Rebuild standalone PyInstaller package (`dist/EAGLE/EAGLE.exe`) with updated SHA-256 checksum.
+- **Files Created/Modified**:
+  - `eagle/core/paths.py` (Registry known folder resolution)
+  - `eagle/core/config.py` (Default to Ollama and least-privilege folder access)
+  - `eagle/services/startup.py` (Windows startup manager, time greetings, session deduplication, single-instance lock)
+  - `eagle/services/continuous_listener.py` (Expanded FSM with SLEEPING, ACTIVE, AWAITING_FOLLOWUP, PRIVACY_MUTED, exact Section 5 lifecycle prompts)
+  - `eagle/services/command_router.py` (Dynamic Known Folder routing and explorer launch)
+  - `eagle/services/ai_provider.py` (Ollama auto-discovery, no silent mock fallback)
+  - `eagle/ui/conversation.py` (Smart auto-scrolling with manual scroll-up preservation)
+  - `eagle/ui/main_window.py` (Time-based greeting dispatch, startup wiring)
+  - `eagle/ui/status_panel.py` & `eagle/ui/visualizer.py` (Updated state indicators)
+  - `eagle/main.py` (Single-instance enforcement, Windows startup check)
+  - `eagle.spec` (Added startup hidden imports, rebuilt package)
+  - `tests/unit/test_startup.py` (4 unit tests)
+  - `tests/unit/test_continuous_listener.py` (15 unit tests)
+  - `tests/unit/test_command_router.py` (14 unit tests)
+  - `tests/unit/test_ai_provider.py` & `tests/unit/test_ollama_provider.py` (Updated tests)
+  - `tests/unit/test_ui.py` (11 unit tests)
+  - `dist/SHA256SUMS.txt` (Updated executable checksum)
+  - `docs/DEVELOPMENT_STATE.md`, `docs/TASK_LOG.md`, `docs/FEATURE_STATUS.md`
+- **Tests Executed**:
+  - `pytest` (159/159 passing in 20.11s)
+  - `ruff check .` (All clean, 0 errors)
+  - `mypy eagle` (Success: no issues found in 33 source files)
+  - Standalone PyInstaller build: `dist/EAGLE/EAGLE.exe` (SHA256: `b32aaccf42965127b7e5473435f62384a1bb71825eb038c8a7c5d68e1648d8c4`)
+- **Status**: Completed

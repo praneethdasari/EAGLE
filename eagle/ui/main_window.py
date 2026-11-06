@@ -17,7 +17,7 @@ from PySide6.QtWidgets import (
 
 from eagle import __version__
 from eagle.core.config import EagleConfig
-from eagle.core.events import EventBus
+from eagle.core.events import EventBus, SpeechOutputRequestedEvent
 from eagle.core.logging import get_logger
 from eagle.services.ai_provider import AIOrchestrator
 from eagle.services.command_router import CommandIntent, CommandRouter
@@ -181,14 +181,25 @@ class MainWindow(QMainWindow):
         self.addAction(settings_action)
 
     def _show_initial_greeting(self) -> None:
+        from eagle.services.startup import SessionGreetingTracker, get_time_based_greeting
+
+        user_title = getattr(self.config.voice, "user_title", "boss")
+        greeting_line = get_time_based_greeting(user_title=user_title)
+
+        tracker = SessionGreetingTracker.get_instance()
+        if not tracker.has_greeted() and getattr(self.config.voice, "startup_greeting", True):
+            tracker.mark_greeted()
+            # Spoken time-based greeting on startup
+            self.event_bus.publish(SpeechOutputRequestedEvent(text=greeting_line))
+
         welcome_text = (
+            f"{greeting_line}\n"
             f"Welcome to EAGLE v{__version__}!\n"
-            "I'm your autonomous desktop voice assistant. You can speak to me by saying 'Hey EAGLE' "
-            "or type any command below.\n"
-            "• Launch apps: 'open notepad', 'launch calculator'\n"
-            "• Search the web: 'search for quantum computing'\n"
-            "• System metrics: 'system info'\n"
-            "• File management: 'list files'"
+            "I'm your autonomous personal AI executive for Windows.\n"
+            "Currently in SLEEPING mode. Say 'Hey EAGLE' to activate me, or type any command below.\n"
+            "• Direct actions: 'open downloads', 'open notepad', 'system info'\n"
+            "• Web search: 'search for Python 3.13 courses'\n"
+            "• Memory & preferences: 'remember my favorite editor is VS Code'"
         )
         self.feed_widget.add_assistant_message(welcome_text)
 
@@ -212,7 +223,11 @@ class MainWindow(QMainWindow):
     def _on_state_changed(self, old_state: str, new_state: str, reason: str) -> None:
         self.mic_indicator.set_state(new_state, reason)
         self.status_panel.update_state(new_state, reason)
-        is_listening = new_state == AssistantState.LISTENING_FOR_WAKE_WORD.value
+        is_listening = new_state in (
+            AssistantState.SLEEPING.value,
+            AssistantState.LISTENING_FOR_WAKE_WORD.value,
+            AssistantState.AWAITING_FOLLOWUP.value,
+        )
         self.input_bar.set_listening_active(is_listening)
 
     def _on_speech_transcribed(self, text: str, confidence: float) -> None:

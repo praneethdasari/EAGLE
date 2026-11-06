@@ -5,7 +5,7 @@ import json
 import time
 from typing import Any
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -208,7 +208,7 @@ class ToolExecutionCard(QFrame):
 
 
 class ConversationFeedWidget(QScrollArea):
-    """Scrollable feed container maintaining conversation history and tool cards."""
+    """Scrollable feed container maintaining conversation history and tool cards with smart auto-scroll."""
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -216,6 +216,9 @@ class ConversationFeedWidget(QScrollArea):
         self.setWidgetResizable(True)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+
+        # Smart auto-scrolling state: tracks if viewport is anchored to bottom
+        self._auto_scroll_enabled: bool = True
 
         # Container widget inside scroll area
         self._container = QWidget()
@@ -227,10 +230,34 @@ class ConversationFeedWidget(QScrollArea):
 
         self.setWidget(self._container)
 
+        # Connect scrollbar events to preserve manual scroll and smoothly follow new content
+        vsb = self.verticalScrollBar()
+        vsb.rangeChanged.connect(self._on_scroll_range_changed)
+        vsb.valueChanged.connect(self._on_scroll_value_changed)
+
+    def _on_scroll_range_changed(self, min_val: int, max_val: int) -> None:
+        """Automatically scroll to the newly expanded bottom if auto-scroll is enabled."""
+        if self._auto_scroll_enabled:
+            self.verticalScrollBar().setValue(max_val)
+
+    def _on_scroll_value_changed(self, value: int) -> None:
+        """Detect if the user has manually scrolled away from the bottom."""
+        max_val = self.verticalScrollBar().maximum()
+        # If viewport is within 50px of bottom, consider it bottom-anchored
+        self._auto_scroll_enabled = (max_val - value) <= 50
+
+    def scroll_to_bottom(self, force: bool = False) -> None:
+        """Scroll vertical scrollbar to maximum bottom position."""
+        if force or self._auto_scroll_enabled:
+            vsb = self.verticalScrollBar()
+            vsb.setValue(vsb.maximum())
+
     def add_user_message(self, text: str) -> None:
-        """Append user message bubble aligned right."""
+        """Append user message bubble aligned right, re-enabling auto-scroll."""
+        self._auto_scroll_enabled = True
         bubble = MessageBubble(text=text, is_user=True)
         self._append_widget(bubble, align_right=True)
+        QTimer.singleShot(0, lambda: self.scroll_to_bottom(force=True))
 
     def add_assistant_message(self, text: str) -> None:
         """Append assistant message bubble aligned left."""
@@ -263,6 +290,7 @@ class ConversationFeedWidget(QScrollArea):
                 widget = item.widget()
                 if widget is not None:
                     widget.deleteLater()
+        self._auto_scroll_enabled = True
 
     def _append_widget(self, widget: QWidget, align_right: bool = False) -> None:
         # Insert before the trailing stretch
@@ -283,5 +311,5 @@ class ConversationFeedWidget(QScrollArea):
         insert_idx = max(0, self._layout.count() - 1)
         self._layout.insertWidget(insert_idx, row_widget)
 
-        # Scroll to bottom smoothly
-        self.verticalScrollBar().setValue(self.verticalScrollBar().maximum())
+        # Defer scroll adjustment to post-layout update
+        QTimer.singleShot(0, self.scroll_to_bottom)

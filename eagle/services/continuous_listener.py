@@ -37,29 +37,61 @@ class AssistantState(StrEnum):
     """Explicit states of the EAGLE continuous listening assistant."""
 
     IDLE = "IDLE"
+    SLEEPING = "SLEEPING"
     LISTENING_FOR_WAKE_WORD = "LISTENING_FOR_WAKE_WORD"
+    ACTIVE = "ACTIVE"
     CAPTURING_COMMAND = "CAPTURING_COMMAND"
     PROCESSING_COMMAND = "PROCESSING_COMMAND"
     SPEAKING = "SPEAKING"
+    AWAITING_FOLLOWUP = "AWAITING_FOLLOWUP"
+    PRIVACY_MUTED = "PRIVACY_MUTED"
     STOPPING = "STOPPING"
     ERROR = "ERROR"
 
 
 VALID_TRANSITIONS: dict[AssistantState, set[AssistantState]] = {
     AssistantState.IDLE: {
+        AssistantState.SLEEPING,
         AssistantState.LISTENING_FOR_WAKE_WORD,
+        AssistantState.ACTIVE,
         AssistantState.CAPTURING_COMMAND,
+        AssistantState.PRIVACY_MUTED,
+        AssistantState.STOPPING,
+        AssistantState.ERROR,
+    },
+    AssistantState.SLEEPING: {
+        AssistantState.ACTIVE,
+        AssistantState.CAPTURING_COMMAND,
+        AssistantState.SPEAKING,
+        AssistantState.PRIVACY_MUTED,
+        AssistantState.IDLE,
         AssistantState.STOPPING,
         AssistantState.ERROR,
     },
     AssistantState.LISTENING_FOR_WAKE_WORD: {
+        AssistantState.ACTIVE,
         AssistantState.CAPTURING_COMMAND,
+        AssistantState.SPEAKING,
+        AssistantState.PRIVACY_MUTED,
+        AssistantState.IDLE,
+        AssistantState.STOPPING,
+        AssistantState.ERROR,
+    },
+    AssistantState.ACTIVE: {
+        AssistantState.CAPTURING_COMMAND,
+        AssistantState.PROCESSING_COMMAND,
+        AssistantState.SPEAKING,
+        AssistantState.AWAITING_FOLLOWUP,
+        AssistantState.SLEEPING,
+        AssistantState.LISTENING_FOR_WAKE_WORD,
         AssistantState.IDLE,
         AssistantState.STOPPING,
         AssistantState.ERROR,
     },
     AssistantState.CAPTURING_COMMAND: {
         AssistantState.PROCESSING_COMMAND,
+        AssistantState.AWAITING_FOLLOWUP,
+        AssistantState.SLEEPING,
         AssistantState.LISTENING_FOR_WAKE_WORD,
         AssistantState.IDLE,
         AssistantState.STOPPING,
@@ -67,23 +99,46 @@ VALID_TRANSITIONS: dict[AssistantState, set[AssistantState]] = {
     },
     AssistantState.PROCESSING_COMMAND: {
         AssistantState.SPEAKING,
+        AssistantState.AWAITING_FOLLOWUP,
+        AssistantState.SLEEPING,
         AssistantState.LISTENING_FOR_WAKE_WORD,
         AssistantState.IDLE,
         AssistantState.STOPPING,
         AssistantState.ERROR,
     },
     AssistantState.SPEAKING: {
+        AssistantState.AWAITING_FOLLOWUP,
+        AssistantState.ACTIVE,
+        AssistantState.CAPTURING_COMMAND,  # User interruption / barge-in
+        AssistantState.SLEEPING,
         AssistantState.LISTENING_FOR_WAKE_WORD,
         AssistantState.IDLE,
-        AssistantState.CAPTURING_COMMAND,  # User interruption / barge-in
         AssistantState.STOPPING,
         AssistantState.ERROR,
+    },
+    AssistantState.AWAITING_FOLLOWUP: {
+        AssistantState.ACTIVE,
+        AssistantState.CAPTURING_COMMAND,
+        AssistantState.PROCESSING_COMMAND,
+        AssistantState.SLEEPING,
+        AssistantState.LISTENING_FOR_WAKE_WORD,
+        AssistantState.PRIVACY_MUTED,
+        AssistantState.IDLE,
+        AssistantState.STOPPING,
+        AssistantState.ERROR,
+    },
+    AssistantState.PRIVACY_MUTED: {
+        AssistantState.SLEEPING,
+        AssistantState.LISTENING_FOR_WAKE_WORD,
+        AssistantState.IDLE,
+        AssistantState.STOPPING,
     },
     AssistantState.STOPPING: {
         AssistantState.IDLE,
     },
     AssistantState.ERROR: {
         AssistantState.IDLE,
+        AssistantState.SLEEPING,
         AssistantState.LISTENING_FOR_WAKE_WORD,
         AssistantState.STOPPING,
     },
@@ -124,6 +179,9 @@ class ContinuousListener:
         self._last_voice_time: float = 0.0
         self._frames_captured: int = 0
         self._is_active = False
+        self._is_awaiting_activation_speech = False
+        self._followup_timer: threading.Timer | None = None
+        self._is_privacy_mode = False
 
         # Asynchronous processing queue for audio commands
         self._process_queue: queue.Queue[bytes] = queue.Queue()
@@ -229,6 +287,9 @@ class ContinuousListener:
         # Interrupt active speech playback if speaking
         self.interrupt()
 
+        # Cancel any active follow-up timer
+        self._cancel_followup_timer()
+
         # Reset wake word engine buffers
         if self.wake_word_engine:
             self.wake_word_engine.reset()
@@ -238,7 +299,98 @@ class ContinuousListener:
 
         with self._state_lock:
             self._command_audio.clear()
+            self._is_awaiting_activation_speech = False
             self.transition_to(AssistantState.IDLE, reason="shutdown complete")
+
+    def _cancel_followup_timer(self) -> None:
+        """Cancel any active 5-second follow-up response window timer."""
+        if self._followup_timer:
+            try:
+                self._followup_timer.cancel()
+            except Exception:
+                pass
+            self._followup_timer = None
+
+    def _handle_wake_word_detected(self) -> None:
+        """Handle wake-word detection: transition to ACTIVE, speak greeting, prepare command capture."""
+        logger.info("Wake word detected! Transitioning to ACTIVE.")
+        self.event_bus.publish(
+            WakeWordDetectedEvent(wake_phrase=self.wake_word_engine.wake_phrase)
+        )
+        self._cancel_followup_timer()
+
+        with self._state_lock:
+            self._command_audio.clear()
+            self.transition_to(AssistantState.ACTIVE, reason="wake word detected")
+
+        # Section 5.4 exact activation prompt: "Yes boss! How can I help you?"
+        user_title = getattr(self.config.voice, "user_title", "boss")
+        activation_text = f"Yes {user_title}! How can I help you?"
+
+        self._is_awaiting_activation_speech = True
+        self.event_bus.publish(SpeechOutputRequestedEvent(text=activation_text))
+
+    def _start_followup_window(self) -> None:
+        """Prompt user if further assistance is needed and begin 5-second response window."""
+        with self._state_lock:
+            if not self._is_active:
+                return
+            self._cancel_followup_timer()
+
+        user_title = getattr(self.config.voice, "user_title", "boss").capitalize()
+        followup_prompt = f"{user_title}! Is there anything I can help you with?"
+
+        self.event_bus.publish(SpeechOutputRequestedEvent(text=followup_prompt))
+
+        with self._state_lock:
+            self.transition_to(
+                AssistantState.AWAITING_FOLLOWUP,
+                reason="awaiting follow-up user response (5s window)",
+            )
+
+        timeout = getattr(self.config.voice, "followup_timeout_seconds", 5.0) or 5.0
+        self._followup_timer = threading.Timer(timeout, self._on_followup_timeout)
+        self._followup_timer.daemon = True
+        self._followup_timer.start()
+        logger.debug("Started follow-up response window (%.1fs timeout)", timeout)
+
+    def _on_followup_timeout(self) -> None:
+        """Called when the 5-second response window expires without user input."""
+        with self._state_lock:
+            if self._state != AssistantState.AWAITING_FOLLOWUP:
+                return
+            logger.info("Follow-up response window expired (5s). Returning to SLEEPING mode.")
+            self._command_audio.clear()
+            self._resume_appropriate_state()
+
+    def set_privacy_mode(self, enabled: bool) -> None:
+        """Toggle strict microphone privacy mode (disables even wake-word listening)."""
+        with self._state_lock:
+            if self._is_privacy_mode == enabled:
+                return
+            self._is_privacy_mode = enabled
+            self._cancel_followup_timer()
+
+        if enabled:
+            logger.info("Enabling strict microphone privacy mode.")
+            try:
+                self.audio_capture.stop_recording()
+            except Exception as exc:
+                logger.debug("Error stopping audio capture for privacy: %s", exc)
+            with self._state_lock:
+                self.transition_to(AssistantState.PRIVACY_MUTED, reason="privacy mode enabled")
+        else:
+            logger.info("Disabling microphone privacy mode, returning to SLEEPING mode.")
+            try:
+                self.audio_capture.start_recording(chunk_callback=self._on_audio_chunk)
+            except Exception as exc:
+                logger.warning("Error restarting audio capture after privacy: %s", exc)
+            with self._state_lock:
+                self._resume_appropriate_state()
+
+    def is_privacy_mode(self) -> bool:
+        """Return True if strict microphone privacy mode is active."""
+        return self._is_privacy_mode
 
     def interrupt(self) -> None:
         """Safely interrupt active speech playback."""
@@ -286,22 +438,39 @@ class ContinuousListener:
         with self._state_lock:
             current_state = self._state
 
-        # 1. State: LISTENING_FOR_WAKE_WORD
-        if current_state == AssistantState.LISTENING_FOR_WAKE_WORD:
+        # 1. State: SLEEPING or LISTENING_FOR_WAKE_WORD (privacy: discard non-wake audio)
+        if current_state in (AssistantState.SLEEPING, AssistantState.LISTENING_FOR_WAKE_WORD):
             detected = self.wake_word_engine.process_audio(pcm_chunk)
             if detected:
-                logger.info("Wake word detected! Transitioning to CAPTURING_COMMAND.")
-                self.event_bus.publish(
-                    WakeWordDetectedEvent(wake_phrase=self.wake_word_engine.wake_phrase)
+                self._handle_wake_word_detected()
+            return
+
+        # 2. State: AWAITING_FOLLOWUP (5-second response window)
+        if current_state == AssistantState.AWAITING_FOLLOWUP:
+            now = time.time()
+            amp = calculate_rms_amplitude(pcm_chunk)
+            vad_threshold = self.config.audio.vad_threshold
+
+            detected = self.wake_word_engine.process_audio(pcm_chunk)
+            if detected or (amp >= (vad_threshold * 0.05)):
+                logger.info(
+                    "User response detected during follow-up window. Continuing conversation."
                 )
+                self._cancel_followup_timer()
                 with self._state_lock:
                     self._command_audio.clear()
-                    self._command_start_time = time.time()
-                    self._last_voice_time = time.time()
+                    self._command_audio.extend(pcm_chunk)
+                    self._command_start_time = now
+                    self._last_voice_time = now
                     self.transition_to(
-                        AssistantState.CAPTURING_COMMAND, reason="wake word triggered"
+                        AssistantState.CAPTURING_COMMAND,
+                        reason="follow-up response received from user",
                     )
                 self.event_bus.publish(AudioCaptureStartedEvent(mode="command"))
+            return
+
+        # 3. State: PRIVACY_MUTED (discards all audio)
+        if current_state == AssistantState.PRIVACY_MUTED:
             return
 
         # 2. State: CAPTURING_COMMAND
@@ -419,9 +588,13 @@ class ContinuousListener:
                 self._resume_appropriate_state()
 
     def _resume_appropriate_state(self) -> None:
-        """Return to LISTENING_FOR_WAKE_WORD or IDLE according to configuration."""
+        """Return to SLEEPING, PRIVACY_MUTED, or IDLE according to configuration."""
         with self._state_lock:
             if not self._is_active:
+                return
+
+            if self._is_privacy_mode:
+                self.transition_to(AssistantState.PRIVACY_MUTED, reason="privacy mode active")
                 return
 
             if (
@@ -430,8 +603,8 @@ class ContinuousListener:
                 and self.wake_word_engine.is_available()
             ):
                 self.transition_to(
-                    AssistantState.LISTENING_FOR_WAKE_WORD,
-                    reason="continuous listening resumed",
+                    AssistantState.SLEEPING,
+                    reason="continuous listening resumed in SLEEPING mode",
                 )
             else:
                 self.transition_to(AssistantState.IDLE, reason="listening cycle complete")
@@ -446,8 +619,20 @@ class ContinuousListener:
 
         def on_speech_finished(event: SpeechOutputFinishedEvent) -> None:
             with self._state_lock:
+                if self._is_awaiting_activation_speech:
+                    self._is_awaiting_activation_speech = False
+                    self._command_audio.clear()
+                    self._command_start_time = time.time()
+                    self._last_voice_time = time.time()
+                    self.transition_to(
+                        AssistantState.CAPTURING_COMMAND,
+                        reason="ready for user command after activation prompt",
+                    )
+                    self.event_bus.publish(AudioCaptureStartedEvent(mode="command"))
+                    return
+
                 if self._state == AssistantState.SPEAKING:
-                    self._resume_appropriate_state()
+                    self._start_followup_window()
 
         self.event_bus.subscribe(SpeechOutputRequestedEvent, on_speech_requested)
         self.event_bus.subscribe(SpeechOutputFinishedEvent, on_speech_finished)

@@ -298,3 +298,28 @@ def test_ai_orchestrator_get_provider_status() -> None:
         assert status["is_healthy"] is True
         assert status["offline_mode"] is True
         assert "qwen2.5:3b" in status["available_models"]
+
+
+def test_ollama_discover_active_model() -> None:
+    """Verify discover_active_model auto-detects installed models when preferred model is absent."""
+    provider = OllamaProvider(config=AIConfig(provider="ollama", model_name="qwen2.5:3b"))
+
+    # Server offline returns default
+    with patch.object(provider, "is_server_running", return_value=False):
+        assert provider.discover_active_model() == "qwen2.5:3b"
+
+    # Server online, preferred model present
+    with (
+        patch.object(provider, "is_server_running", return_value=True),
+        patch.object(provider, "get_available_models", return_value=["qwen2.5:3b", "llama3.2:3b"]),
+    ):
+        assert provider.discover_active_model() == "qwen2.5:3b"
+
+    # Server online, preferred absent, auto-discovers llama
+    with (
+        patch.object(provider, "is_server_running", return_value=True),
+        patch.object(provider, "get_available_models", return_value=["llama3.2:latest", "phi3:mini"]),
+    ):
+        model = provider.discover_active_model()
+        assert "llama3.2" in model
+

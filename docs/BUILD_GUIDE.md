@@ -44,7 +44,7 @@ To build the executable from source, ensure the following prerequisites are inst
 
 ## 3. PyInstaller Specification (`eagle.spec`)
 
-The packaging rules are codified in [`eagle.spec`](file:///c:/Desktop/anti%20gravity%20projects/EAGLE/eagle.spec).
+The packaging rules are codified in [`eagle.spec`](../eagle.spec).
 
 ### Specification Structure:
 - **Datas**:

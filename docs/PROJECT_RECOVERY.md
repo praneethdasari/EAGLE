@@ -216,6 +216,15 @@ All four commands MUST exit with status 0 before pushing changes to GitHub.
 | **Milestone 6** | PySide6 Desktop GUI | **Completed** | Dark eagle theme, audio visualizer, conversation history feed, status indicators |
 | **Milestone 7** | Packaging & Distribution | **Completed** | PyInstaller onedir distribution, isolated paths, build automation, checksum verification |
 | **Milestone 8** | Real-World Deployment & Offline AI | **Completed** | Local Ollama AI, strict offline mode policy, local FasterWhisper caching, SAPI5 voice controls |
+| **Milestone 8.1** | Real-World Repair & Interaction Lifecycle | **In Progress** | Dynamic Known Folders (`E:\Desktop`), Section 5 lifecycle, auto-scroll, Ollama discovery |
+| **Milestone 9** | Advanced AI Brain & Multi-Provider | Planned | Multi-provider router, persona adaptation, structured multi-turn tool calling |
+| **Milestone 10** | Advanced Windows Desktop Automation | Planned | Window management, filesystem tools, system control (volume/brightness), UI Automation |
+| **Milestone 11** | Browser Intelligence (Playwright) | Planned | Brave/Chrome/Edge automation, web navigation, media playback verification |
+| **Milestone 12** | Communication & Messaging Approvals | Planned | WhatsApp & Instagram adapters, spoken review, cryptographically bound approval |
+| **Milestone 13** | Persistent Personal Memory | Planned | SQLite memory store, semantic retrieval, preference management, privacy controls |
+| **Milestone 14** | Personal Executive & Scheduling | Planned | Persistent scheduler, natural language reminders, executive morning briefings |
+| **Milestone 15** | Autonomous Agent Execution Framework | Planned | Multi-step task planner, real-time UI progress cards, post-execution verification |
+| **Milestone 16** | Production Hardening & Release Verification | Planned | Security audit, performance profiling, final PyInstaller build, release verification |
 
 ---
 
@@ -260,32 +269,31 @@ If the local project directory is deleted or corrupted:
 
 This checkpoint represents the verified state at the conclusion of the latest development session:
 
-- **Session Date**: 2026-11-05
+- **Session Date**: 2026-11-06
 - **Last Completed Task**: Task 008 — Real-World Deployment & Offline AI Integration (Milestone 8)
+- **Active Task**: Milestone 8.1 — Real-World Functional Repair & Interaction Lifecycle
 - **Current Git Branch**: `main`
-- **Latest Commit**: `0f100d0`
+- **Latest Commit**: `8cee252`
 - **Configured Remote**: `origin -> https://github.com/praneethdasari/EAGLE.git`
-- **Release Version**: `v0.8.0` (Milestone 8 Completed)
+- **Release Version**: `v0.8.1-dev`
+- **Active Working Directory**: `E:\Desktop\anti gravity projects\EAGLE`
+- **Master Roadmap**: `docs/EAGLE_MASTER_ROADMAP.md`
 - **Features Completed in Session**:
-  - Local Ollama AI provider (`OllamaProvider`) with installation check, daemon verification, model tag discovery, and dual tool calling engine.
-  - Strict offline security policy (`OfflinePolicyViolationError`) intercepting all outbound cloud calls when `offline_mode: true`.
-  - Local FasterWhisper STT cache verification with `local_files_only=True` in `%LOCALAPPDATA%\EAGLE\models\whisper`.
-  - Local SAPI5 voice enumeration, runtime selection, and volume/rate controls via `Pyttsx3TTSEngine`.
-  - Offline wake-word detection model resolution in `%LOCALAPPDATA%\EAGLE\models\wakeword`.
-  - Desktop UI status panel displaying live Ollama status, model tag, and offline badge.
-  - Settings dialog with SAPI5 voice dropdown and offline mode toggle.
-  - 17 new automated tests (10 unit, 7 integration) bringing the total suite to 150 passed tests.
-  - Standalone Windows 11 executable rebuilt (`dist/EAGLE/EAGLE.exe`, 6.62 MB, SHA-256: `140f5a06576e4791a5a08d91a92ec822999aeb489bfdfe59c1821e2c06dd123a`).
-  - Comprehensive offline deployment guide: `docs/OFFLINE_SETUP.md`.
+  - Comprehensive repository audit and Master Roadmap creation (`docs/EAGLE_MASTER_ROADMAP.md`).
+  - Audited relocated Windows Desktop on `E:\Desktop` and preserved `C:\Desktop` without deletion.
+  - Implemented dynamic Windows Known Folder resolution (`get_desktop_dir()`, `get_documents_dir()`, `get_downloads_dir()`) in `eagle/core/paths.py` via Windows Registry.
+  - Updated `SecurityConfig.allowed_directories` to resolve user known folders dynamically.
+  - Updated `eagle/services/ai_provider.py` to resolve Ollama across all system drive roots dynamically.
+  - Updated relative documentation links (`docs/BUILD_GUIDE.md`).
 - **Features In Progress**:
-  - None (Milestones 0–8 fully implemented, tested, verified, and packaged).
+  - Milestone 8.1: Real-World Functional Repair & Interaction Lifecycle.
 - **Outstanding Errors & Blockers**:
   - None. 0 errors, 0 blockers.
 - **Tests Executed & Results**:
-  - `pytest tests/unit tests/integration`: 150/150 tests passing (100% pass rate in ~5.8s across 17 test modules)
-  - `ruff check eagle tests scripts`: Clean (0 errors)
-  - `ruff format --check eagle tests scripts`: Clean (54 source files checked)
-  - `mypy eagle tests scripts`: Clean (Success: no issues found in 54 source files)
-  - PyInstaller Standalone Build: `dist/EAGLE/EAGLE.exe` verified (SHA-256: `140f5a06576e4791a5a08d91a92ec822999aeb489bfdfe59c1821e2c06dd123a`)
+  - `pytest`: 150/150 tests passing (100% pass rate in ~3.8s across 17 test modules).
+  - `ruff check .`: Clean (0 errors).
+  - `mypy eagle`: Clean (Success: no issues found in 32 source files).
 - **Next Recommended Task**:
-  - Milestone 9: Multi-modal vision perception (screen capture, OCR, window inspection) and advanced desktop automation.
+  - Sub-milestone 8.1.2: AI Provider Auto-Discovery & Health Reporting (eliminate silent mock responses).
+  - Sub-milestone 8.1.3: Conversation Feed Smart Auto-Scroll Repair in `eagle/ui/conversation.py`.
+  - Sub-milestone 8.1.4: Section 5 Interaction Lifecycle implementation (startup greeting, sleeping mode, "Yes boss! How can I help you?", task verification, "Boss! Is there anything I can help you with?", 5s window).

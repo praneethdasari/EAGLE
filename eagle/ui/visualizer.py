@@ -18,20 +18,28 @@ class MicrophoneIndicatorWidget(QWidget):
 
     STATE_COLORS: dict[str, str] = {
         AssistantState.IDLE.value: PALETTE.TEXT_SECONDARY,
+        AssistantState.SLEEPING.value: PALETTE.ACCENT_CYAN,
         AssistantState.LISTENING_FOR_WAKE_WORD.value: PALETTE.ACCENT_CYAN,
+        AssistantState.ACTIVE.value: PALETTE.ACCENT_CYAN,
         AssistantState.CAPTURING_COMMAND.value: PALETTE.ACCENT_GOLD,
         AssistantState.PROCESSING_COMMAND.value: PALETTE.ACCENT_PURPLE,
         AssistantState.SPEAKING.value: PALETTE.ACCENT_CYAN,
+        AssistantState.AWAITING_FOLLOWUP.value: PALETTE.ACCENT_GOLD,
+        AssistantState.PRIVACY_MUTED.value: PALETTE.ACCENT_RED,
         AssistantState.STOPPING.value: PALETTE.TEXT_MUTED,
         AssistantState.ERROR.value: PALETTE.ACCENT_RED,
     }
 
     STATE_LABELS: dict[str, str] = {
         AssistantState.IDLE.value: "Idle",
-        AssistantState.LISTENING_FOR_WAKE_WORD.value: "Listening for 'Hey EAGLE'",
+        AssistantState.SLEEPING.value: "Sleeping (Waiting for 'Hey EAGLE')",
+        AssistantState.LISTENING_FOR_WAKE_WORD.value: "Sleeping (Waiting for 'Hey EAGLE')",
+        AssistantState.ACTIVE.value: "Active",
         AssistantState.CAPTURING_COMMAND.value: "Listening to Command...",
         AssistantState.PROCESSING_COMMAND.value: "Thinking...",
         AssistantState.SPEAKING.value: "Speaking...",
+        AssistantState.AWAITING_FOLLOWUP.value: "Awaiting Follow-up...",
+        AssistantState.PRIVACY_MUTED.value: "Mic Muted (Privacy)",
         AssistantState.STOPPING.value: "Stopping...",
         AssistantState.ERROR.value: "System Error",
     }

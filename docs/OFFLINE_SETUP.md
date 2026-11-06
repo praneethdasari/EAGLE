@@ -196,3 +196,4 @@ pytest tests/integration/test_offline_pipeline.py -v
 ### Q: Cloud AI requests are blocked with `OfflinePolicyViolationError`
 - This is intentional security behavior. When `offline_mode: true` is set, EAGLE strictly prevents accidental transmission of audio transcripts or queries to OpenAI, Groq, or other cloud APIs.
 - To use cloud providers, switch `offline_mode` to `false` in Settings.
+
