@@ -17,7 +17,7 @@ from eagle.services.command_router import CommandRouter
 from eagle.tools.apps import LaunchAppTool
 from eagle.tools.files import InspectFileTool, ListFilesTool
 from eagle.tools.registry import ToolRegistry
-from eagle.tools.system import SystemInfoTool
+from eagle.tools.system import BrightnessControlTool, SystemInfoTool, VolumeControlTool
 from eagle.tools.web import OpenWebsiteTool, WebSearchTool
 
 # =====================================================================
@@ -620,3 +620,144 @@ def test_end_to_end_app_launch_and_file_operation(mocker: MockerFixture, tmp_pat
     assert len(completed_events) == 3
     assert completed_events[2].tool_name == "system_info"
     assert completed_events[2].success is True
+
+
+# =====================================================================
+# VolumeControlTool Tests
+# =====================================================================
+
+
+def test_volume_control_tool_get(mocker: MockerFixture) -> None:
+    """Verify volume_control tool queries master volume and mute state."""
+    mock_vol = mocker.MagicMock()
+    mock_vol.GetMasterVolumeLevelScalar.return_value = 0.75
+    mock_vol.GetMute.return_value = 0
+
+    mock_dev = mocker.MagicMock()
+    mock_dev.EndpointVolume = mock_vol
+
+    mocker.patch("pycaw.pycaw.AudioUtilities.GetSpeakers", return_value=mock_dev)
+
+    tool = VolumeControlTool()
+    res = tool.execute({"action": "get"})
+    assert res.success is True
+    assert "75%" in res.output
+    assert res.metadata["volume"] == 75
+    assert res.metadata["muted"] is False
+
+
+def test_volume_control_tool_set(mocker: MockerFixture) -> None:
+    """Verify volume_control tool sets scalar volume accurately."""
+    mock_vol = mocker.MagicMock()
+    mock_vol.GetMute.return_value = 1
+
+    mock_dev = mocker.MagicMock()
+    mock_dev.EndpointVolume = mock_vol
+
+    mocker.patch("pycaw.pycaw.AudioUtilities.GetSpeakers", return_value=mock_dev)
+
+    tool = VolumeControlTool()
+    res = tool.execute({"action": "set", "level": 40})
+    assert res.success is True
+    assert "40%" in res.output
+    mock_vol.SetMasterVolumeLevelScalar.assert_called_once_with(0.4, None)
+    mock_vol.SetMute.assert_called_once_with(0, None)
+
+
+def test_volume_control_tool_increase_decrease(mocker: MockerFixture) -> None:
+    """Verify volume_control tool increases and decreases volume scalar."""
+    mock_vol = mocker.MagicMock()
+    mock_vol.GetMasterVolumeLevelScalar.return_value = 0.50
+    mock_vol.GetMute.return_value = 0
+
+    mock_dev = mocker.MagicMock()
+    mock_dev.EndpointVolume = mock_vol
+
+    mocker.patch("pycaw.pycaw.AudioUtilities.GetSpeakers", return_value=mock_dev)
+
+    tool = VolumeControlTool()
+    # Increase by 15%
+    res_inc = tool.execute({"action": "increase", "level": 15})
+    assert res_inc.success is True
+    assert "65%" in res_inc.output
+
+    # Decrease by 20%
+    res_dec = tool.execute({"action": "decrease", "level": 20})
+    assert res_dec.success is True
+    assert "30%" in res_dec.output
+
+
+def test_volume_control_tool_mute_unmute(mocker: MockerFixture) -> None:
+    """Verify volume_control tool toggles mute status."""
+    mock_vol = mocker.MagicMock()
+    mock_vol.GetMasterVolumeLevelScalar.return_value = 0.60
+    mock_dev = mocker.MagicMock()
+    mock_dev.EndpointVolume = mock_vol
+
+    mocker.patch("pycaw.pycaw.AudioUtilities.GetSpeakers", return_value=mock_dev)
+
+    tool = VolumeControlTool()
+    res_mute = tool.execute({"action": "mute"})
+    assert res_mute.success is True
+    mock_vol.SetMute.assert_called_with(1, None)
+
+    res_unmute = tool.execute({"action": "unmute"})
+    assert res_unmute.success is True
+    mock_vol.SetMute.assert_called_with(0, None)
+
+
+# =====================================================================
+# BrightnessControlTool Tests
+# =====================================================================
+
+
+def test_brightness_control_tool_get_and_set(mocker: MockerFixture) -> None:
+    """Verify brightness_control tool queries and sets screen brightness."""
+    mock_sbc = mocker.MagicMock()
+    mock_sbc.get_brightness.return_value = [65]
+    mocker.patch.dict("sys.modules", {"screen_brightness_control": mock_sbc})
+
+    tool = BrightnessControlTool()
+    res_get = tool.execute({"action": "get"})
+    assert res_get.success is True
+    assert "65%" in res_get.output
+
+    res_set = tool.execute({"action": "set", "level": 80})
+    assert res_set.success is True
+    assert "80%" in res_set.output
+    mock_sbc.set_brightness.assert_called_once_with(80)
+
+
+def test_brightness_control_tool_increase_decrease(mocker: MockerFixture) -> None:
+    """Verify brightness_control tool steps brightness up and down."""
+    mock_sbc = mocker.MagicMock()
+    mock_sbc.get_brightness.return_value = [50]
+    mocker.patch.dict("sys.modules", {"screen_brightness_control": mock_sbc})
+
+    tool = BrightnessControlTool()
+    res_inc = tool.execute({"action": "increase", "level": 15})
+    assert res_inc.success is True
+    assert "65%" in res_inc.output
+    mock_sbc.set_brightness.assert_called_with(65)
+
+    res_dec = tool.execute({"action": "decrease", "level": 25})
+    assert res_dec.success is True
+    assert "25%" in res_dec.output
+    mock_sbc.set_brightness.assert_called_with(25)
+
+
+def test_brightness_control_tool_max_min(mocker: MockerFixture) -> None:
+    """Verify brightness_control tool sets maximum and minimum brightness."""
+    mock_sbc = mocker.MagicMock()
+    mocker.patch.dict("sys.modules", {"screen_brightness_control": mock_sbc})
+
+    tool = BrightnessControlTool()
+    res_max = tool.execute({"action": "max"})
+    assert res_max.success is True
+    assert "100%" in res_max.output
+    mock_sbc.set_brightness.assert_called_with(100)
+
+    res_min = tool.execute({"action": "min"})
+    assert res_min.success is True
+    assert "0%" in res_min.output
+    mock_sbc.set_brightness.assert_called_with(0)

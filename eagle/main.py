@@ -17,12 +17,12 @@ from eagle.services.audio_capture import AudioCaptureManager
 from eagle.services.command_router import CommandIntent, CommandRouter
 from eagle.services.continuous_listener import AssistantState, ContinuousListener
 from eagle.services.stt import create_stt_engine
-from eagle.services.tts import create_tts_engine
+from eagle.services.tts import SpeechPlaybackWorker, create_tts_engine
 from eagle.services.wake_word import get_wake_word_engine
 from eagle.tools.apps import LaunchAppTool
 from eagle.tools.files import InspectFileTool, ListFilesTool
 from eagle.tools.registry import ToolRegistry
-from eagle.tools.system import SystemInfoTool
+from eagle.tools.system import BrightnessControlTool, SystemInfoTool, VolumeControlTool
 from eagle.tools.web import OpenWebsiteTool, WebSearchTool
 
 
@@ -34,6 +34,8 @@ def register_default_tools(registry: ToolRegistry, config: EagleConfig) -> None:
     registry.register(ListFilesTool(security_config=config.security))
     registry.register(InspectFileTool(security_config=config.security))
     registry.register(SystemInfoTool())
+    registry.register(VolumeControlTool())
+    registry.register(BrightnessControlTool())
 
 
 BANNER = f"""
@@ -106,6 +108,8 @@ def main(args: list[str] | None = None) -> int:
     audio_capture = AudioCaptureManager(config=config.audio, event_bus=event_bus)
     stt_engine = create_stt_engine(config=config.voice)
     tts_engine = create_tts_engine(config=config.voice)
+    speech_worker = SpeechPlaybackWorker(tts_engine=tts_engine, event_bus=event_bus)
+    speech_worker.start()
     wake_word_engine = get_wake_word_engine(config=config, stt_engine=stt_engine)
 
     ai_orchestrator = AIOrchestrator(
@@ -125,6 +129,7 @@ def main(args: list[str] | None = None) -> int:
         wake_word_engine=wake_word_engine,
         stt_engine=stt_engine,
         tts_engine=tts_engine,
+        speech_worker=speech_worker,
         command_router=router,
         ai_orchestrator=ai_orchestrator,
     )
@@ -147,8 +152,13 @@ def main(args: list[str] | None = None) -> int:
             )
             if result.success and result.output:
                 print(f"[Tool Output]:\n{result.output}")
+                if evt.tool_name in ("volume_control", "brightness_control", "system_info"):
+                    event_bus.publish(SpeechOutputRequestedEvent(text=result.output))
             elif not result.success:
                 print(f"[Tool Error]: {result.error}")
+                if evt.tool_name in ("volume_control", "brightness_control"):
+                    err_msg = result.error or "Failed executing command."
+                    event_bus.publish(SpeechOutputRequestedEvent(text=f"Sorry boss, {err_msg}"))
         except Exception as exc:
             logger.error("Failed executing tool '%s': %s", evt.tool_name, exc)
             event_bus.publish(
@@ -218,6 +228,7 @@ def main(args: list[str] | None = None) -> int:
             print("\nShutting down EAGLE. Goodbye!")
         finally:
             listener.stop()
+            speech_worker.stop()
         return 0
     else:
         logger.info("Initializing EAGLE PySide6 Desktop Interface...")
@@ -231,6 +242,7 @@ def main(args: list[str] | None = None) -> int:
         if not instance_lock.acquire():
             logger.warning("Another instance of EAGLE is already active. Exiting.")
             print("[EAGLE]: Another instance is already active.")
+            speech_worker.stop()
             return 0
 
         # Automatic Windows startup configuration
@@ -252,6 +264,7 @@ def main(args: list[str] | None = None) -> int:
             exit_code = app.exec()
         finally:
             listener.stop()
+            speech_worker.stop()
             instance_lock.release()
         return exit_code
 

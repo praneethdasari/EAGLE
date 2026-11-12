@@ -31,6 +31,8 @@ class CommandIntent(StrEnum):
     WEB_SEARCH = "web_search"  # Search web for X, google Y
     WEB_OPEN = "web_open"  # Go to github.com, open python.org
     SYSTEM_INFO = "system_info"  # Battery level, system status
+    VOLUME_CONTROL = "volume_control"  # Master volume, mute, unmute
+    BRIGHTNESS_CONTROL = "brightness_control"  # Display brightness
     FILE_OPERATION = "file_operation"  # List files in Documents
     CONVERSATION = "conversation"  # Question answering, AI chat
     UNKNOWN = "unknown"  # Unrecognized command
@@ -141,12 +143,22 @@ class CommandRouter:
         if system_info_route:
             return system_info_route
 
-        # 6. File Operations
+        # 6. Volume Control
+        volume_route = self._check_volume_control(normalized, raw_text)
+        if volume_route:
+            return volume_route
+
+        # 7. Brightness Control
+        brightness_route = self._check_brightness_control(normalized, raw_text)
+        if brightness_route:
+            return brightness_route
+
+        # 8. File Operations
         file_route = self._check_file_operations(normalized, raw_text)
         if file_route:
             return file_route
 
-        # 7. Conversational / Informational Query
+        # 9. Conversational / Informational Query
         if self._is_conversational_query(normalized):
             return CommandRoute(
                 intent=CommandIntent.CONVERSATION,
@@ -310,6 +322,212 @@ class CommandRouter:
             )
         return None
 
+    def _check_volume_control(self, text: str, raw: str) -> CommandRoute | None:
+        """Matches volume adjustment commands: set volume, volume up/down, mute, unmute, status."""
+        # 1. Mute / Unmute
+        if re.search(
+            r"\b(?:unmute|un-mute)(?:\s+(?:the\s+)?(?:volume|sound|audio|speaker))?\b", text
+        ):
+            return CommandRoute(
+                intent=CommandIntent.VOLUME_CONTROL,
+                raw_text=raw,
+                normalized_text=text,
+                action_name="volume_control",
+                parameters={"action": "unmute"},
+                confidence=0.98,
+                matched_rule="volume_unmute",
+            )
+        if re.search(r"\b(?:mute)(?:\s+(?:the\s+)?(?:volume|sound|audio|speaker))?\b", text):
+            return CommandRoute(
+                intent=CommandIntent.VOLUME_CONTROL,
+                raw_text=raw,
+                normalized_text=text,
+                action_name="volume_control",
+                parameters={"action": "mute"},
+                confidence=0.98,
+                matched_rule="volume_mute",
+            )
+
+        # 2. Set volume to specific level: "set volume to 50 percent", "set volume 50%", "volume 75", "turn volume to 40"
+        m_set = re.search(
+            r"(?:set|turn|change|put)?\s*(?:the\s+)?volume\s+(?:to\s+)?(\d{1,3})\s*(?:%|percent)?",
+            text,
+        )
+        if m_set:
+            val = float(m_set.group(1))
+            return CommandRoute(
+                intent=CommandIntent.VOLUME_CONTROL,
+                raw_text=raw,
+                normalized_text=text,
+                action_name="volume_control",
+                parameters={"action": "set", "level": val},
+                confidence=0.98,
+                matched_rule="volume_set",
+            )
+
+        # 3. Increase volume: "increase volume", "volume up", "turn up the volume", "turn it up", "raise volume"
+        m_inc = re.search(
+            r"(?:increase|raise|turn\s+up|pump\s+up)\s*(?:the\s+)?(?:volume|sound|audio)?(?:\s+by\s+(\d{1,2})\s*(?:%|percent)?)?|"
+            r"(?:volume|sound|audio)\s+up(?:\s+by\s+(\d{1,2})\s*(?:%|percent)?)?",
+            text,
+        )
+        if m_inc and any(kw in text for kw in ("volume", "sound", "audio", "turn up", "pump up")):
+            step_str = m_inc.group(1) or m_inc.group(2)
+            step = float(step_str) if step_str else 10.0
+            return CommandRoute(
+                intent=CommandIntent.VOLUME_CONTROL,
+                raw_text=raw,
+                normalized_text=text,
+                action_name="volume_control",
+                parameters={"action": "increase", "level": step},
+                confidence=0.95,
+                matched_rule="volume_increase",
+            )
+
+        # 4. Decrease volume: "decrease volume", "volume down", "turn down the volume", "turn it down", "lower volume"
+        m_dec = re.search(
+            r"(?:decrease|lower|reduce|turn\s+down)\s*(?:the\s+)?(?:volume|sound|audio)?(?:\s+by\s+(\d{1,2})\s*(?:%|percent)?)?|"
+            r"(?:volume|sound|audio)\s+down(?:\s+by\s+(\d{1,2})\s*(?:%|percent)?)?",
+            text,
+        )
+        if m_dec and any(kw in text for kw in ("volume", "sound", "audio", "turn down", "lower")):
+            step_str = m_dec.group(1) or m_dec.group(2)
+            step = float(step_str) if step_str else 10.0
+            return CommandRoute(
+                intent=CommandIntent.VOLUME_CONTROL,
+                raw_text=raw,
+                normalized_text=text,
+                action_name="volume_control",
+                parameters={"action": "decrease", "level": step},
+                confidence=0.95,
+                matched_rule="volume_decrease",
+            )
+
+        # 5. Query volume: "what is the volume", "current volume", "get volume", "check volume"
+        if (
+            re.search(
+                r"\b(?:what(?:\s+is)?|get|check|tell\s+me)\s+(?:the\s+)?(?:current\s+)?(?:volume|sound\s+level)\b",
+                text,
+            )
+            or text == "volume"
+        ):
+            return CommandRoute(
+                intent=CommandIntent.VOLUME_CONTROL,
+                raw_text=raw,
+                normalized_text=text,
+                action_name="volume_control",
+                parameters={"action": "get"},
+                confidence=0.95,
+                matched_rule="volume_get",
+            )
+
+        return None
+
+    def _check_brightness_control(self, text: str, raw: str) -> CommandRoute | None:
+        """Matches brightness adjustment commands: set brightness, up/down, max/min, status."""
+        # 1. Max / Min brightness
+        if re.search(
+            r"\b(?:max|maximum|full)\s+(?:the\s+)?brightness\b|set\s+(?:the\s+)?brightness\s+to\s+(?:max|maximum|full)",
+            text,
+        ):
+            return CommandRoute(
+                intent=CommandIntent.BRIGHTNESS_CONTROL,
+                raw_text=raw,
+                normalized_text=text,
+                action_name="brightness_control",
+                parameters={"action": "max"},
+                confidence=0.98,
+                matched_rule="brightness_max",
+            )
+        if re.search(
+            r"\b(?:min|minimum|lowest)\s+(?:the\s+)?brightness\b|set\s+(?:the\s+)?brightness\s+to\s+(?:min|minimum|lowest)",
+            text,
+        ):
+            return CommandRoute(
+                intent=CommandIntent.BRIGHTNESS_CONTROL,
+                raw_text=raw,
+                normalized_text=text,
+                action_name="brightness_control",
+                parameters={"action": "min"},
+                confidence=0.98,
+                matched_rule="brightness_min",
+            )
+
+        # 2. Set brightness to specific level: "set brightness to 50 percent", "set brightness 80%", "brightness 60"
+        m_set = re.search(
+            r"(?:set|turn|change|put)?\s*(?:the\s+)?brightness\s+(?:to\s+)?(\d{1,3})\s*(?:%|percent)?",
+            text,
+        )
+        if m_set:
+            val = float(m_set.group(1))
+            return CommandRoute(
+                intent=CommandIntent.BRIGHTNESS_CONTROL,
+                raw_text=raw,
+                normalized_text=text,
+                action_name="brightness_control",
+                parameters={"action": "set", "level": val},
+                confidence=0.98,
+                matched_rule="brightness_set",
+            )
+
+        # 3. Increase brightness: "increase brightness", "brightness up", "brighter", "turn up brightness"
+        m_inc = re.search(
+            r"(?:increase|raise|turn\s+up|make\s+it\s+more)\s*(?:the\s+)?brightness(?:\s+by\s+(\d{1,2})\s*(?:%|percent)?)?|"
+            r"brightness\s+up(?:\s+by\s+(\d{1,2})\s*(?:%|percent)?)?|\bbrighter\b",
+            text,
+        )
+        if m_inc:
+            step_str = m_inc.group(1) or m_inc.group(2)
+            step = float(step_str) if step_str else 10.0
+            return CommandRoute(
+                intent=CommandIntent.BRIGHTNESS_CONTROL,
+                raw_text=raw,
+                normalized_text=text,
+                action_name="brightness_control",
+                parameters={"action": "increase", "level": step},
+                confidence=0.95,
+                matched_rule="brightness_increase",
+            )
+
+        # 4. Decrease brightness: "decrease brightness", "brightness down", "dim screen", "dimmer", "turn down brightness"
+        m_dec = re.search(
+            r"(?:decrease|lower|reduce|turn\s+down)\s*(?:the\s+)?brightness(?:\s+by\s+(\d{1,2})\s*(?:%|percent)?)?|"
+            r"brightness\s+down(?:\s+by\s+(\d{1,2})\s*(?:%|percent)?)?|\b(?:dim|dimmer)\s*(?:screen)?\b",
+            text,
+        )
+        if m_dec:
+            step_str = m_dec.group(1) or m_dec.group(2)
+            step = float(step_str) if step_str else 10.0
+            return CommandRoute(
+                intent=CommandIntent.BRIGHTNESS_CONTROL,
+                raw_text=raw,
+                normalized_text=text,
+                action_name="brightness_control",
+                parameters={"action": "decrease", "level": step},
+                confidence=0.95,
+                matched_rule="brightness_decrease",
+            )
+
+        # 5. Query brightness: "what is the brightness", "current brightness", "check brightness"
+        if (
+            re.search(
+                r"\b(?:what(?:\s+is)?|get|check|tell\s+me)\s+(?:the\s+)?(?:current\s+)?brightness\b",
+                text,
+            )
+            or text == "brightness"
+        ):
+            return CommandRoute(
+                intent=CommandIntent.BRIGHTNESS_CONTROL,
+                raw_text=raw,
+                normalized_text=text,
+                action_name="brightness_control",
+                parameters={"action": "get"},
+                confidence=0.95,
+                matched_rule="brightness_get",
+            )
+
+        return None
+
     def _check_file_operations(self, text: str, raw: str) -> CommandRoute | None:
         # Matches: "inspect file report.txt", "check file notes.md", "view file readme.txt"
         inspect_match = re.match(r"^(?:inspect|check|view)\s+(?:the\s+)?file\s+(.+)$", text)
@@ -421,6 +639,24 @@ class CommandRouter:
             )
             return
 
+        if route.intent == CommandIntent.VOLUME_CONTROL:
+            self.event_bus.publish(
+                ToolExecutionRequestedEvent(
+                    tool_name="volume_control",
+                    arguments=route.parameters,
+                )
+            )
+            return
+
+        if route.intent == CommandIntent.BRIGHTNESS_CONTROL:
+            self.event_bus.publish(
+                ToolExecutionRequestedEvent(
+                    tool_name="brightness_control",
+                    arguments=route.parameters,
+                )
+            )
+            return
+
         if route.intent == CommandIntent.FILE_OPERATION:
             action = route.action_name or "list_files"
             if action == "open_folder":
@@ -470,7 +706,7 @@ class CommandRouter:
             else:
                 msg = (
                     "EAGLE AI reasoning is currently unavailable. "
-                    "Supported direct commands (e.g. open notepad, list files, system info) remain active."
+                    "Supported direct commands (e.g. open notepad, list files, volume, brightness) remain active."
                 )
                 self.event_bus.publish(SpeechOutputRequestedEvent(text=msg))
             return

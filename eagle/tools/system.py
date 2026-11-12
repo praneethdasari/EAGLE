@@ -186,3 +186,254 @@ class SystemInfoTool(BaseTool):
             output=output_text,
             metadata=metadata,
         )
+
+
+class VolumeControlArgs(BaseModel):
+    """Arguments for controlling master system audio volume."""
+
+    action: str = Field(
+        default="get",
+        description="Volume action: 'get', 'set', 'increase', 'decrease', 'mute', 'unmute'",
+    )
+    level: float | None = Field(
+        default=None,
+        description="Target volume level as a percentage (0-100) or step amount",
+    )
+
+
+class VolumeControlTool(BaseTool):
+    """Tool to adjust and query Windows master audio volume."""
+
+    name = "volume_control"
+    description = (
+        "Control or query master system volume: get volume, set volume level (0-100), "
+        "increase, decrease, mute, or unmute."
+    )
+    parameters_schema = VolumeControlArgs
+    is_sensitive = False
+
+    def run(self, validated_args: BaseModel) -> ToolResult:
+        args: VolumeControlArgs = validated_args  # type: ignore[assignment]
+        action = args.action.strip().lower()
+
+        try:
+            import pythoncom  # type: ignore[import-untyped]
+
+            pythoncom.CoInitialize()
+        except Exception:
+            pass
+
+        try:
+            import pycaw.pycaw as pycaw  # type: ignore[import-untyped]
+
+            speakers = pycaw.AudioUtilities.GetSpeakers()
+            if not speakers or not hasattr(speakers, "EndpointVolume"):
+                return ToolResult(
+                    success=False,
+                    output="Audio output endpoint is not available.",
+                    error="No active speaker device found.",
+                )
+
+            volume_endpoint = speakers.EndpointVolume
+
+            if action == "get":
+                scalar = float(volume_endpoint.GetMasterVolumeLevelScalar())
+                percent = round(scalar * 100)
+                is_muted = bool(volume_endpoint.GetMute())
+                muted_str = " (muted)" if is_muted else ""
+                return ToolResult(
+                    success=True,
+                    output=f"Master volume is {percent}%{muted_str}.",
+                    metadata={"volume": percent, "muted": is_muted},
+                )
+
+            if action == "mute":
+                volume_endpoint.SetMute(1, None)
+                return ToolResult(
+                    success=True,
+                    output="Master audio muted.",
+                    metadata={"muted": True},
+                )
+
+            if action == "unmute":
+                volume_endpoint.SetMute(0, None)
+                scalar = float(volume_endpoint.GetMasterVolumeLevelScalar())
+                percent = round(scalar * 100)
+                return ToolResult(
+                    success=True,
+                    output=f"Master audio unmuted. Volume is {percent}%.",
+                    metadata={"volume": percent, "muted": False},
+                )
+
+            if action == "set":
+                target_percent = 50.0 if args.level is None else float(args.level)
+                target_percent = max(0.0, min(100.0, target_percent))
+                scalar = target_percent / 100.0
+                volume_endpoint.SetMasterVolumeLevelScalar(scalar, None)
+                if volume_endpoint.GetMute():
+                    volume_endpoint.SetMute(0, None)
+                return ToolResult(
+                    success=True,
+                    output=f"Master volume set to {round(target_percent)}%.",
+                    metadata={"volume": round(target_percent), "muted": False},
+                )
+
+            if action == "increase":
+                step = float(args.level) if args.level is not None else 10.0
+                current_scalar = float(volume_endpoint.GetMasterVolumeLevelScalar())
+                new_percent = min(100.0, (current_scalar * 100.0) + step)
+                volume_endpoint.SetMasterVolumeLevelScalar(new_percent / 100.0, None)
+                if volume_endpoint.GetMute():
+                    volume_endpoint.SetMute(0, None)
+                return ToolResult(
+                    success=True,
+                    output=f"Master volume increased to {round(new_percent)}%.",
+                    metadata={"volume": round(new_percent), "muted": False},
+                )
+
+            if action == "decrease":
+                step = float(args.level) if args.level is not None else 10.0
+                current_scalar = float(volume_endpoint.GetMasterVolumeLevelScalar())
+                new_percent = max(0.0, (current_scalar * 100.0) - step)
+                volume_endpoint.SetMasterVolumeLevelScalar(new_percent / 100.0, None)
+                return ToolResult(
+                    success=True,
+                    output=f"Master volume decreased to {round(new_percent)}%.",
+                    metadata={"volume": round(new_percent), "muted": False},
+                )
+
+            return ToolResult(
+                success=False,
+                output=f"Unknown volume action: '{action}'.",
+                error=f"Action '{action}' not recognized.",
+            )
+
+        except Exception as exc:
+            logger.error("Volume control failed: %s", exc, exc_info=True)
+            return ToolResult(
+                success=False,
+                output=f"Failed adjusting volume: {exc}",
+                error=str(exc),
+            )
+        finally:
+            try:
+                import pythoncom  # type: ignore[import-untyped]
+
+                pythoncom.CoUninitialize()
+            except Exception:
+                pass
+
+
+class BrightnessControlArgs(BaseModel):
+    """Arguments for controlling display brightness."""
+
+    action: str = Field(
+        default="get",
+        description="Brightness action: 'get', 'set', 'increase', 'decrease', 'max', 'min'",
+    )
+    level: float | None = Field(
+        default=None,
+        description="Target brightness level as a percentage (0-100) or step amount",
+    )
+
+
+class BrightnessControlTool(BaseTool):
+    """Tool to adjust and query display brightness."""
+
+    name = "brightness_control"
+    description = (
+        "Control or query display brightness: get brightness, set brightness level (0-100), "
+        "increase, decrease, or set to max/min."
+    )
+    parameters_schema = BrightnessControlArgs
+    is_sensitive = False
+
+    def _get_current_brightness(self) -> int:
+        import screen_brightness_control as sbc  # type: ignore[import-untyped]
+
+        levels = sbc.get_brightness()
+        if isinstance(levels, list) and levels:
+            return int(levels[0])
+        elif isinstance(levels, (int, float)):
+            return int(levels)
+        raise RuntimeError("No active display detected for brightness control.")
+
+    def run(self, validated_args: BaseModel) -> ToolResult:
+        args: BrightnessControlArgs = validated_args  # type: ignore[assignment]
+        action = args.action.strip().lower()
+
+        try:
+            import screen_brightness_control as sbc  # type: ignore[import-untyped]
+
+            if action == "get":
+                current = self._get_current_brightness()
+                return ToolResult(
+                    success=True,
+                    output=f"Display brightness is {current}%.",
+                    metadata={"brightness": current},
+                )
+
+            if action == "set":
+                target = 50 if args.level is None else int(round(args.level))
+                target = max(0, min(100, target))
+                sbc.set_brightness(target)
+                return ToolResult(
+                    success=True,
+                    output=f"Display brightness set to {target}%.",
+                    metadata={"brightness": target},
+                )
+
+            if action == "increase":
+                step = int(round(args.level)) if args.level is not None else 10
+                current = self._get_current_brightness()
+                new_val = min(100, current + step)
+                sbc.set_brightness(new_val)
+                return ToolResult(
+                    success=True,
+                    output=f"Display brightness increased to {new_val}%.",
+                    metadata={"brightness": new_val},
+                )
+
+            if action == "decrease":
+                step = int(round(args.level)) if args.level is not None else 10
+                current = self._get_current_brightness()
+                new_val = max(0, current - step)
+                sbc.set_brightness(new_val)
+                return ToolResult(
+                    success=True,
+                    output=f"Display brightness decreased to {new_val}%.",
+                    metadata={"brightness": new_val},
+                )
+
+            if action == "max":
+                sbc.set_brightness(100)
+                return ToolResult(
+                    success=True,
+                    output="Display brightness set to maximum (100%).",
+                    metadata={"brightness": 100},
+                )
+
+            if action == "min":
+                sbc.set_brightness(0)
+                return ToolResult(
+                    success=True,
+                    output="Display brightness set to minimum (0%).",
+                    metadata={"brightness": 0},
+                )
+
+            return ToolResult(
+                success=False,
+                output=f"Unknown brightness action: '{action}'.",
+                error=f"Action '{action}' not recognized.",
+            )
+
+        except Exception as exc:
+            logger.warning("Brightness control failed: %s", exc)
+            return ToolResult(
+                success=False,
+                output=(
+                    f"Display brightness could not be adjusted: {exc}. "
+                    "Note: External monitors or sandbox isolation may restrict hardware backlight controls."
+                ),
+                error=str(exc),
+            )
