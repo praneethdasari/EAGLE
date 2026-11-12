@@ -6,7 +6,8 @@ This document maintains a truthful, verified status of all EAGLE capabilities. F
 | :--- | :--- | :--- | :--- | :--- |
 | **Foundation** | Python 3.13 Virtualenv & Config | **Completed** | `.venv` isolated environment, `pyproject.toml`, `.gitignore` | Automated test run |
 | **Foundation** | Git Repository & GitHub Remote | **Completed** | Connected to `https://github.com/praneethdasari/EAGLE.git` | `git remote -v` verification |
-| **Foundation** | Pydantic Configuration Engine | **Completed** | Schema-backed settings, defaults, path validation | `test_config.py` (7 tests pass) |
+| **Foundation** | Pydantic Configuration Engine | **Completed** | Schema-backed settings, defaults, path validation | `test_config.py` (18 tests pass) |
+| **Foundation** | Atomic Writes & Corruption Recovery | **Completed** | Safe `.tmp.<pid>_<uuid>` writes, fsync, `.bak` rotation, `.corrupted.<timestamp>` preservation, CLI/env precedence | `test_config.py` (18 tests pass) |
 | **Foundation** | Structured Logging & Secret Redaction | **Completed** | File/console logger with key masking | `test_logging.py` (3 tests pass) |
 | **Foundation** | Custom Exception Hierarchy | **Completed** | Granular error classes for all subsystems | `test_exceptions.py` (3 tests pass) |
 | **Foundation** | Event Bus & Signals | **Completed** | Decoupled publish/subscribe architecture | `test_events.py` (4 tests pass) |
@@ -37,5 +38,10 @@ This document maintains a truthful, verified status of all EAGLE capabilities. F
 | **Voice** | Local SAPI5 Voice Selection | **Completed** | Pyttsx3TTSEngine voice enumeration (get_available_voices), rate, volume, interruptibility | test_offline_pipeline.py |
 | **Voice** | Master Interaction Lifecycle & Wake-Word State Machine | **Completed** | Time-based greeting, SLEEPING state, wake activation ("Yes boss! How can I help you?"), 5s follow-up window ("Boss! Is there anything I can help you with?"), and physical mic privacy toggle | test_continuous_listener.py, test_startup.py |
 | **Interface** | Conversation Feed Smart Auto-Scroll | **Completed** | Smooth auto-scroll on new messages; suppresses autojump when user manually scrolls up | test_ui.py |
-| **Interface** | Offline Diagnostic Status Panel | **Completed** | Real-time Ollama connection badge, active local model display, strict offline indicator | MainWindow, StatusPanelWidget |
+| **Interface** | Offline Diagnostic Status Panel | **Completed** | Real-time Ollama connection badge, active local model display, strict offline indicator, dynamic Offline badge | MainWindow, StatusPanelWidget |
 | **System** | Windows Startup & Single-Instance Lock | **Completed** | HKCU Run registry manager, single-instance mutex lockfile in %APPDATA%/EAGLE/eagle.lock | test_startup.py (4 tests pass) |
+| **Voice** | Asynchronous TTS Audio Playback | **Completed** | Dedicated `SpeechPlaybackWorker` executing SAPI5 synthesis on background COM thread with guaranteed terminal events and barge-in | test_tts.py, test_continuous_listener.py |
+| **Voice** | Local Speech-to-Text (Faster-Whisper) | **Completed** | CPU-quantized Faster-Whisper base model cached on E: drive with PyAV 14+ compatibility patch | test_stt.py, test_tools.py |
+| **Hardware** | Master Audio Volume Control | **Completed** | `VolumeControlTool` via `pycaw` (get, set, increase, decrease, mute, unmute) with natural language routing | test_tools.py, test_command_router.py |
+| **Hardware** | Display Brightness Control | **Completed** | `BrightnessControlTool` via `screen_brightness_control` (get, set, increase, decrease, max, min) with natural language routing | test_tools.py, test_command_router.py |
+| **Security** | Dynamic Documents Path Reconciliation | **Completed** | Automatically detects and updates moved Documents path (e.g. from C: to E:) against Windows Registry User Shell Folders | test_config.py |

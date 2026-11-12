@@ -127,3 +127,25 @@ uff, 	kinter).
 - [x] **8.9** Documentation, Release & GitHub Synchronization:
   - Authored comprehensive docs/OFFLINE_SETUP.md.
   - Updated all project documentation and synchronized commit to GitHub origin/main.
+
+---
+
+## Milestone 8.1 & Phase 3: Real-World Defect Repair, Interaction Lifecycle & Hardware Controls
+- [x] **8.1.1** Dynamic Known Folder Resolution: Windows Registry `User Shell Folders` resolution (`E:\Desktop`, `E:\Documents`, `E:\Downloads`).
+- [x] **8.1.2** Dynamic Application Discovery & Navigation: dynamic shell execution and folder opening (`explorer.exe <path>`).
+- [x] **8.1.3** Master Interaction Lifecycle: time-based greetings, SLEEPING mode, wake activation ("Yes boss! How can I help you?"), 5-second follow-up window, and hardware microphone privacy mode.
+- [x] **8.1.4** Conversation Feed Auto-Scroll: smooth auto-scrolling with manual inspection scroll-lock defense.
+- [x] **8.1.5** Dedicated Asynchronous TTS Playback Worker: background thread COM-initialized SAPI5 playback with barge-in and terminal event guarantee.
+- [x] **8.1.6** Local Faster-Whisper Model Caching: cached base model on `E:\Desktop\anti gravity projects\EAGLE\models\whisper` with PyAV 14+ compatibility patch.
+- [x] **8.1.7** Windows Hardware Controls: Master Audio Volume (`pycaw`) and Display Brightness (`screen_brightness_control`) with natural language routing.
+- [x] **8.1.8** Dynamic Documents Path Reconciliation: automatic detection and migration of stale `C:\Users\...\Documents` to verified `E:\Documents`.
+
+---
+
+## Configuration Hardening: Atomic Writes, Backup Rotation & Corruption Recovery
+- [x] **C.1** Atomic Configuration Writes: process-isolated temporary files (`.tmp.<pid>_<uuid>`), buffer flush, hardware disk sync (`os.fsync`), schema validation before replacement, and atomic `os.replace`.
+- [x] **C.2** Automatic Backup Rotation: safe rotation of valid configuration to `config.json.bak` before overwriting; prevention of corrupted active data overwriting valid backups.
+- [x] **C.3** Automatic Corruption Recovery: multi-failure detection in `load_config()` (missing, empty, malformed, invalid schema), recovery from `config.json.bak`, diagnostic preservation as `<name>.corrupted.<timestamp>`, and safe default configuration fallback (`EagleConfig()`) guaranteeing non-crashing startup.
+- [x] **C.4** Path Precedence Hierarchy: CLI `--config` > `EAGLE_CONFIG_PATH` env var > portable mode `./config.json` > standard `%APPDATA%\EAGLE\config.json`.
+- [x] **C.5** Single-Instance Lock Isolation: verified `SingleInstanceManager` (`%APPDATA%\EAGLE\eagle.lock`) remains isolated, protected, and valid throughout full configuration recovery.
+- [x] **C.6** 182/182 automated tests passing with 0 Ruff errors and 0 Mypy errors across 33 source files.

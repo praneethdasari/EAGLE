@@ -115,6 +115,8 @@ EAGLE executes verified desktop automation actions through a sandboxed tool regi
 - **Sandboxed Directory Listing (`list_files`)**: Inspects permitted directory contents with formatted sizes and timestamps, stopping `..` traversal and symlink escapes.
 - **File Metadata Inspection (`inspect_file`)**: Non-destructively reads file timestamps, sizes, and file types within allowed directories.
 - **System Telemetry (`system_info`)**: Gathers live platform, CPU utilization, memory, and battery status metrics via `psutil`.
+- **Master Audio Volume Control (`volume_control`)**: Native Windows audio volume adjustment via `pycaw` (get, set, increase, decrease, mute, unmute).
+- **Display Brightness Control (`brightness_control`)**: Native monitor brightness management via `screen_brightness_control` (get, set, increase, decrease, max, min).
 
 ---
 
@@ -129,4 +131,5 @@ EAGLE executes verified desktop automation actions through a sandboxed tool regi
 - **Milestone 6**: PySide6 Desktop GUI (Completed)
 - **Milestone 7**: Release Hardening & Windows Executable Packaging (Completed)
 - **Milestone 8**: Real-World Deployment & Offline AI Integration (Completed)
+- **Milestone 8.1**: Real-World Repair, Interaction Lifecycle & Reliability (Completed)
 - **Milestone 9**: Multi-modal Vision Perception & Desktop Intelligence (Planned)

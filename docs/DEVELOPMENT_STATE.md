@@ -7,7 +7,7 @@
 ## 1. Project Metadata
 
 - **Application Name**: EAGLE (Enhanced Autonomous General-purpose Local Executive)
-- **Current Version**: `0.8.1-dev` (Baseline: v0.8.0 / Commit `8cee252`)
+- **Current Version**: `0.8.2-dev` (Defect Repair & Audio/STT/Hardware Complete)
 - **Active Branch**: `main`
 - **Target Platform**: Microsoft Windows 11 (NT 10.0.26300.0 or compatible)
 - **Active Working Directory**: `E:\Desktop\anti gravity projects\EAGLE`
@@ -31,6 +31,8 @@
 | **Milestone 7** | Packaging & Release Hardening | **Completed** | 100% | 5 tests (133 total) |
 | **Milestone 8** | Real-World Deployment & Offline AI | **Completed** | 100% | 17 tests (150 total) |
 | **Milestone 8.1** | Real-World Repair & Interaction Lifecycle | **Completed** | 100% | 9 tests (159 total) |
+| **Phase 3 Repairs** | Audio/TTS/STT Pipeline & Hardware Control | **Completed** | 100% | 13 tests (172 total) |
+| **Config Hardening** | Atomic Writes, Backup Rotation & Recovery | **Completed** | 100% | 10 tests (182 total) |
 | **Milestone 9** | Advanced AI Brain & Multi-Provider | Planned | 0% | Milestone 9 specs |
 | **Milestone 10** | Advanced Windows Desktop Automation | Planned | 0% | Milestone 10 specs |
 | **Milestone 11** | Browser Intelligence (Playwright) | Planned | 0% | Milestone 11 specs |
@@ -40,7 +42,7 @@
 | **Milestone 15** | Autonomous Agent Execution Framework | Planned | 0% | Milestone 15 specs |
 | **Milestone 16** | Production Hardening & Release Verification | Planned | 0% | Milestone 16 specs |
 
-**Total Automated Test Count**: **159 passed** (100% pass rate in ~20s across 18 modules)  
+**Total Automated Test Count**: **182 passed** (100% pass rate in ~9s across 18 modules)  
 **Static Analysis**: Ruff clean (0 errors), Ruff format (clean), Mypy clean (0 errors across 33 source files).
 
 ---
@@ -71,33 +73,45 @@
 - [x] Custom dark eagle-themed PySide6 desktop interface (`eagle.ui.theme`).
 - [x] Smart auto-scrolling in `ConversationFeedWidget` that smoothly tracks conversation while respecting manual user scroll-up inspection.
 - [x] Dynamic 32-bar audio reactive visualizer widget and pulsing microphone state indicator badge (`eagle.ui.visualizer`).
-- [x] Real-time system telemetry sidebar panel with Ollama connectivity status and offline mode badge (`eagle.ui.status_panel`).
+- [x] Real-time system telemetry sidebar panel with Ollama connectivity status, offline mode badge, and dynamic offline indicator (`eagle.ui.status_panel`).
 - [x] Fallback typed input bar with send button and microphone toggle (`eagle.ui.input_bar`).
 - [x] Multi-tab preferences modal dialog with SAPI5 voice selection, offline mode toggle, and JSON persistence (`eagle.ui.settings_dialog`).
 - [x] Desktop `MainWindow` orchestrating application lifecycle and shutdown hooks (`eagle.ui.main_window`).
-- [x] Windows 11 PyInstaller packaging in `dist/EAGLE/EAGLE.exe` with `dist/SHA256SUMS.txt`.
+- [x] Dedicated `SpeechPlaybackWorker` executing SAPI5 speech synthesis asynchronously on a background COM thread with guaranteed terminal events and barge-in (`eagle.services.tts`).
+- [x] Local Faster-Whisper base model caching on E: drive (`E:\Desktop\anti gravity projects\EAGLE\models\whisper`) with PyAV 14+ compatibility patch and sliding-window wake-word detection (`eagle.services.stt`).
+- [x] Master system volume control (`VolumeControlTool`) using `pycaw` with full action suite (get, set, increase, decrease, mute, unmute) and natural language routing (`eagle.tools.system`, `eagle.services.command_router`).
+- [x] Display brightness control (`BrightnessControlTool`) using `screen_brightness_control` with full action suite (get, set, increase, decrease, max, min) and natural language routing (`eagle.tools.system`, `eagle.services.command_router`).
+- [x] Dynamic Documents directory reconciliation in `load_config()` automatically migrating stale C: Documents path to verified Windows Registry `User Shell Folders` (`E:\Documents`) with backup `config.json.bak` (`eagle.core.config`).
+- [x] Clean handling of uninstalled Ollama: status panel shows `AI: Ollama (Offline)` in red, conversational queries inform the user that direct commands (volume, brightness, files, apps) remain active (`eagle.services.command_router`, `eagle.ui.status_panel`).
+- [x] Windows 11 PyInstaller packaging in `dist/EAGLE/EAGLE.exe` with updated `dist/SHA256SUMS.txt`.
 
 ---
 
-## 4. Completed Phase: Milestone 8.1 — Real-World Functional Repair
+## 4. Completed Phase: Phase 3 Real-World Defect Repair and Implementation
 
-All Sub-milestones 8.1.1 through 8.1.5 completed and verified:
-1. **Dynamic Known Folders**: Completed. `eagle.core.paths` dynamically resolves relocated Windows Desktop (`E:\Desktop`), Documents, and Downloads. Least-privilege sandboxing preserved.
-2. **AI Provider Auto-Discovery**: Completed. Local Ollama auto-discovery implemented; silent mock fallback eliminated.
-3. **Conversation Feed Auto-Scroll**: Completed. Fixed `ConversationFeedWidget` smart auto-scroll with manual scroll-up preservation.
-4. **Interaction Lifecycle**: Completed. Section 5 interaction lifecycle fully implemented:
-   - Startup time-based greeting ("Good morning/afternoon/evening/night, boss!").
-   - Session deduplication (greeting spoken once per login session).
-   - Single-instance protection and Windows startup registry management.
-   - Transition to `SLEEPING`.
-   - Wake activation ("Yes boss! How can I help you?"), transitioning to `ACTIVE` and `CAPTURING_COMMAND`.
-   - Task follow-up ("Boss! Is there anything I can help you with?") and 5-second response window (`AWAITING_FOLLOWUP`).
-   - Hardware/software microphone privacy mode (`PRIVACY_MUTED`).
-5. **Known Folder Navigation**: Completed. "Open downloads", "open desktop", "show documents" dispatches `explorer.exe <path>` with verbal confirmation under least privilege.
+All 8 approved repair tasks completed and verified:
+1. **TTS Pipeline Repair**: Implemented `SpeechPlaybackWorker` background thread running SAPI5 audio playback safely outside GUI thread with COM initialization (`pythoncom`), non-blocking barge-in, and guaranteed terminal `SpeechOutputFinishedEvent`. Verified physical audibility on Realtek speakers.
+2. **Voice & STT Pipeline**: Installed `faster-whisper 1.2.1` in `.venv`, downloaded `base` model to `E:\Desktop\anti gravity projects\EAGLE\models\whisper`, patched PyAV 14+ compatibility, fixed listener follow-up state machine to avoid duplicate triggers and infinite loops.
+3. **Master Volume Control**: Implemented `VolumeControlTool` via `pycaw`, added natural language regex routing in `CommandRouter`, registered tool in `ToolRegistry` and `main.py`. Verified real master volume adjustment and mute toggling.
+4. **Display Brightness Control**: Implemented `BrightnessControlTool` via `screen_brightness_control`, added natural language regex routing in `CommandRouter`, registered tool in `ToolRegistry` and `main.py`. Verified real display brightness adjustment on `DISPLAY\LGD06E8`.
+5. **Dynamic Documents Path Reconciliation**: Added automatic reconciliation in `load_config()` resolving stale Documents path to `E:\Documents` (`get_documents_dir()`), backed up `config.json` to `config.json.bak`, persisted updated configuration to disk, verified Settings UI displays `E:\Documents`.
+6. **Uninstalled Ollama Handling**: Ensured UI status panel displays `AI: Ollama (Offline)` in red, conversational fallback gracefully informs user that direct commands remain active, verified zero cloud or mock fallback.
+7. **Quality Assurance**: 172/172 tests passing (100% pass rate), 0 Ruff errors, 0 Mypy errors across 33 source files.
+8. **Release Build**: Standalone PyInstaller package rebuilt in `dist/EAGLE/EAGLE.exe` (SHA256: `70c03510edcc56fcb5cfbfa403d44cc0b494ca939560edb377917129d1ecbe9d`), updated `dist/SHA256SUMS.txt`.
 
 ---
 
-## 5. Verified Hardware & Environmental Baseline
+## 5. Configuration Reliability, Atomic Writes & Corruption Recovery
+
+- **Atomic Writes**: Implemented in `eagle.core.config.save_config()` using process-isolated temporary files (`.tmp.<pid>_<uuid>`), buffer flush, hardware synchronization (`os.fsync`), schema pre-validation, and atomic NTFS replacement (`os.replace`).
+- **Automatic Backup Rotation**: Valid active configurations are automatically preserved to `<name>.bak` (`config.json.bak`) before modification. Corrupted active files never overwrite a valid backup.
+- **Automatic Corruption Recovery**: `eagle.core.config.load_config()` detects missing, empty, malformed JSON, or schema-invalid configurations, recovers from `<name>.bak`, preserves corrupted files as `<name>.corrupted.<timestamp>`, and atomically restores primary configuration. If both primary and backup are invalid, preserves both and falls back to safe default settings (`EagleConfig`), ensuring Windows startup never fails.
+- **Configuration Path Precedence**: Verified hierarchy: (1) CLI `--config`, (2) `EAGLE_CONFIG_PATH` environment variable, (3) Portable mode `./config.json`, (4) Standard Windows AppData `%APPDATA%\EAGLE\config.json`.
+- **Startup & Lock Safety**: Single-instance mutex lock (`%APPDATA%\EAGLE\eagle.lock`) remains isolated and unaffected by configuration recovery operations.
+
+---
+
+## 6. Verified Hardware & Environmental Baseline
 
 - Host audio devices: 30 detected, default input index 1.
 - SAPI5 speech synthesis voices: 2 native installed voices (`Microsoft David Desktop`, `Microsoft Zira Desktop`).

@@ -427,3 +427,65 @@ uff check eagle tests scripts (All clean)
   - `mypy eagle` (Success: no issues found in 33 source files)
   - Standalone PyInstaller build: `dist/EAGLE/EAGLE.exe` (SHA256: `b32aaccf42965127b7e5473435f62384a1bb71825eb038c8a7c5d68e1648d8c4`)
 - **Status**: Completed
+
+---
+
+## Task 010: Real-World Defect Investigation and Repair (Phase 3 Execution)
+- **Date**: 2026-11-12
+- **Architect/Engineer**: Google Antigravity (Lead Architect & Senior Developer)
+- **Objective**: Execute Phase 3 defect repairs across all 6 real-world issues uncovered during physical Windows 11 acceptance testing:
+  1. **TTS Pipeline**: Implemented `SpeechPlaybackWorker` running SAPI5 audio playback asynchronously on a dedicated background thread with COM initialization (`pythoncom`), barge-in support, and guaranteed terminal `SpeechOutputFinishedEvent` generation. Physically verified audible output on Realtek speakers.
+  2. **Voice & STT Pipeline**: Installed `faster-whisper 1.2.1` in `.venv`, downloaded `base` model to `E:\Desktop\anti gravity projects\EAGLE\models\whisper`, applied PyAV 14+ compatibility patch, and repaired listener follow-up state machine to avoid duplicate triggers and infinite loops.
+  3. **Master Volume Control**: Implemented `VolumeControlTool` using `pycaw` (get, set, increase, decrease, mute, unmute), added regex routing in `CommandRouter`, registered tool in `ToolRegistry` and `main.py`. Verified real master volume adjustment and mute toggling.
+  4. **Display Brightness Control**: Implemented `BrightnessControlTool` using `screen_brightness_control` (get, set, increase, decrease, max, min), added regex routing in `CommandRouter`, registered tool in `ToolRegistry` and `main.py`. Verified real display brightness adjustment on `DISPLAY\LGD06E8`.
+  5. **Dynamic Documents Path Reconciliation**: Added automatic reconciliation in `load_config()` resolving stale Documents path to `E:\Documents` (`get_documents_dir()`), backed up `config.json` to `config.json.bak`, persisted updated configuration to disk, verified Settings UI displays `E:\Documents`.
+  6. **Uninstalled Ollama Handling**: Ensured UI status panel displays `AI: Ollama (Offline)` in red, conversational fallback gracefully informs user that direct commands (volume, brightness, files, apps) remain active, verified zero cloud or mock fallback.
+  7. **Quality Assurance**: 172/172 tests passing (100% pass rate), 0 Ruff errors, 0 Mypy errors across 33 source files.
+  8. **Release Build**: Standalone PyInstaller package rebuilt in `dist/EAGLE/EAGLE.exe` (SHA256: `70c03510edcc56fcb5cfbfa403d44cc0b494ca939560edb377917129d1ecbe9d`), updated `dist/SHA256SUMS.txt`.
+- **Files Created/Modified**:
+  - `eagle/services/tts.py` (Implemented `SpeechPlaybackWorker`)
+  - `eagle/services/continuous_listener.py` (Repaired state machine, follow-up window, speech lifecycle)
+  - `eagle/services/stt.py` (PyAV 14+ compatibility patch, direct WAV decoding)
+  - `eagle/services/command_router.py` (Volume & Brightness routing, uninstalled Ollama fallback)
+  - `eagle/tools/system.py` (Implemented `VolumeControlTool` & `BrightnessControlTool`)
+  - `eagle/tools/__init__.py` (Exported volume & brightness tools)
+  - `eagle/core/config.py` (Dynamic Documents reconciliation, backup)
+  - `eagle/ui/status_panel.py` (Offline Ollama badge display)
+  - `eagle/main.py` (Registered volume & brightness tools, spoken tool output)
+  - `eagle.spec` (Added hardware & STT hidden imports)
+  - `dist/SHA256SUMS.txt` (Updated executable checksum)
+  - `tests/unit/test_tools.py` (Added 7 unit tests for volume and brightness)
+  - `tests/unit/test_command_router.py` (Added 5 unit tests for volume, brightness, offline Ollama)
+  - `tests/unit/test_config.py` (Added unit test for dynamic documents reconciliation)
+  - `docs/DEVELOPMENT_STATE.md`, `docs/TASK_LOG.md`, `docs/FEATURE_STATUS.md`
+- **Tests Executed**:
+  - `pytest` (172/172 passing in 8.98s)
+  - `ruff check --no-cache .` (All clean, 0 errors)
+  - `mypy eagle` (Success: no issues found in 33 source files)
+  - Standalone PyInstaller build: `dist/EAGLE/EAGLE.exe` (SHA256: `70c03510edcc56fcb5cfbfa403d44cc0b494ca939560edb377917129d1ecbe9d`)
+- **Status**: Completed
+
+---
+
+## Task 011: Configuration Reliability, Atomic Writes & Corruption Recovery
+- **Date**: 2026-11-12
+- **Architect/Engineer**: Google Antigravity (Lead Architect & Senior Developer)
+- **Objective**: Implement approved configuration reliability improvements on Windows 11:
+  1. **Atomic Configuration Writes**: Implemented safe temporary file writing in `save_config()` (`.tmp.<pid>_<uuid>`), OS buffer flushing, hardware synchronization (`os.fsync`), pre-validation against `EagleConfig` schema, and atomic replacement via `os.replace`.
+  2. **Automatic Backup Rotation**: Valid active configuration is automatically preserved to `config.json.bak` before modification. Corrupted configurations are never allowed to overwrite a valid backup.
+  3. **Automatic Corruption Recovery**: `load_config()` detects missing, empty (0 bytes), malformed JSON, or schema-invalid configurations, recovers from `config.json.bak`, preserves corrupted files as `<name>.corrupted.<timestamp>`, restores primary configuration atomically, and falls back to safe default configuration if both are corrupted without crashing.
+  4. **Configuration Path Precedence**: Enforced exact hierarchy: CLI `--config` > `EAGLE_CONFIG_PATH` env var > `./config.json` portable mode > `%APPDATA%\EAGLE\config.json`.
+  5. **Startup & Lock Safety**: Verified single-instance mutex lock (`%APPDATA%\EAGLE\eagle.lock`) remains isolated, protected, and completely unaffected by configuration recovery operations.
+- **Files Created/Modified**:
+  - `eagle/core/paths.py` (added `EAGLE_CONFIG_PATH` env var precedence in `get_default_config_path()`)
+  - `eagle/core/config.py` (atomic writes in `save_config()`, backup rotation, auto-recovery and corrupt file preservation in `load_config()`)
+  - `tests/unit/test_config.py` (added 10 unit tests covering atomic writes, temp cleanup, backup rotation, recovery from invalid JSON, empty file recovery, both-invalid fallback, corrupted file preservation, CLI/env precedence, and single-instance lock safety)
+  - `docs/ARCHITECTURE.md` (documented atomic storage, backup rotation, recovery lifecycle, and path precedence)
+  - `docs/DEVELOPMENT_STATE.md` (updated milestone tracker, test count to 182, and configuration reliability capabilities)
+  - `docs/TASK_LOG.md` (recorded Task 011)
+  - `docs/FEATURE_STATUS.md` (updated Configuration Management feature status)
+- **Tests Executed**:
+  - `pytest` (182/182 passing in 8.70s)
+  - `ruff check --no-cache eagle tests` (All clean, 0 errors)
+  - `mypy eagle` (Success: no issues found in 33 source files)
+- **Status**: Completed

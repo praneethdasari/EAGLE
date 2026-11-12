@@ -97,9 +97,29 @@ EAGLE/
 
 ### 3.1 `eagle.core.config`
 - Single source of truth for all runtime settings.
-- Uses Pydantic v2 for data validation and schema coercion.
-- Loads from `config.json` with fallback to safe defaults.
-- Validates filesystem directory paths, allowed applications, and audio settings.
+- Uses Pydantic v2 for data validation, field constraints, and schema coercion.
+- **Configuration Path Precedence**:
+  1. Explicit CLI argument (`--config <path>`) passed to `main.py` and `load_config()`.
+  2. `EAGLE_CONFIG_PATH` environment variable (if set and non-empty).
+  3. Portable mode: `./config.json` in the current working directory.
+  4. Standard persistent user data directory: `%APPDATA%\EAGLE\config.json` (or `~/.eagle/config.json` on non-Windows).
+- **Atomic Configuration Writes (`save_config`)**:
+  - Writes configuration to a unique temporary file in the target directory (`<name>.tmp.<pid>_<uuid>`).
+  - Calls `flush()` and `os.fsync()` to ensure operating system and hardware disk synchronization.
+  - Validates the serialized configuration on disk against `EagleConfig` schema before replacing active files.
+  - Atomically replaces the target configuration using `os.replace()`, eliminating truncation risks on crash or power loss.
+  - Cleans up leftover temporary files reliably.
+- **Automatic Backup Rotation**:
+  - Before modifying an existing configuration, validates the active file.
+  - If valid, atomically rotates it to `<name>.bak` (`config.json.bak`).
+  - If the active configuration is already corrupted or incomplete, it is never copied over an existing valid backup.
+- **Automatic Corruption Recovery (`load_config`)**:
+  - Detects missing, empty (0 bytes), malformed JSON, or schema-invalid configurations.
+  - Automatically recovers from `<name>.bak` if the primary configuration is unusable.
+  - On recovery, preserves the corrupted file as `<name>.corrupted.<timestamp>` for diagnosis, restores the valid primary configuration atomically, and logs the recovery event.
+  - If both primary and backup configurations are unusable, preserves both files with timestamps, logs the error, and falls back to safe default settings (`EagleConfig`), ensuring Windows startup and the single-instance guard (`eagle.lock`) never fail.
+- **Dynamic Documents Reconciliation**:
+  - Automatically reconciles relocated Windows Known Folders (e.g. `E:\Documents`) without granting unrestricted filesystem access.
 
 ### 3.2 `eagle.core.logging`
 - Formats logs into human-readable console output and structured disk logs.
