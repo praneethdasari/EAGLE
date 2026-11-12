@@ -239,10 +239,11 @@ class StatusPanelWidget(QFrame):
         is_healthy = bool(provider_status.get("is_healthy", False))
         offline = bool(provider_status.get("offline_mode", False))
 
-        self._provider_label.setText(f"AI: {provider} ({model})")
         if is_healthy:
+            self._provider_label.setText(f"AI: {provider} ({model})")
             self._provider_label.setStyleSheet(f"font-size: 11px; color: {PALETTE.ACCENT_GREEN};")
         else:
+            self._provider_label.setText(f"AI: {provider} (Offline)")
             self._provider_label.setStyleSheet(f"font-size: 11px; color: {PALETTE.ACCENT_RED};")
 
         if offline:

@@ -39,6 +39,17 @@ hiddenimports = [
     "pydantic_core",
     # System telemetry
     "psutil",
+    # Hardware & Audio control
+    "pycaw",
+    "pycaw.pycaw",
+    "pycaw.utils",
+    "screen_brightness_control",
+    "screen_brightness_control.windows",
+    # Speech-to-text & Local AI Inference
+    "faster_whisper",
+    "ctranslate2",
+    "huggingface_hub",
+    "av",
     # Networking & HTTP
     "requests",
     "urllib3",

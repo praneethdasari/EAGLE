@@ -1,10 +1,13 @@
 """Speech-to-Text (STT) service and engine abstractions for EAGLE."""
 
 import io
+import wave
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
+import numpy as np
 
 from eagle.core.config import AudioConfig
 from eagle.core.exceptions import TranscriptionError
@@ -142,6 +145,24 @@ class FasterWhisperSTT(BaseSTTEngine):
             )
 
         try:
+            # PyAV 14+ removed metadata_errors parameter from av.open.
+            # faster-whisper 1.2.1 still passes metadata_errors="ignore".
+            # Patch av.open if necessary to preserve compatibility.
+            try:
+                import av
+
+                if not getattr(av, "_eagle_patched", False):
+                    _orig_av_open = av.open
+
+                    def _safe_av_open(*args: Any, **kwargs: Any) -> Any:
+                        kwargs.pop("metadata_errors", None)
+                        return _orig_av_open(*args, **kwargs)
+
+                    av.open = _safe_av_open  # type: ignore[assignment]
+                    av._eagle_patched = True  # type: ignore[attr-defined]
+            except ImportError:
+                pass
+
             from faster_whisper import WhisperModel
 
             logger.info(
@@ -172,10 +193,27 @@ class FasterWhisperSTT(BaseSTTEngine):
             return TranscriptionResult(text="", confidence=0.0)
 
         try:
-            # Wrap bytes in a BinaryIO stream for faster-whisper
-            audio_stream = io.BytesIO(audio_bytes)
+            # If audio_bytes is WAV, decode PCM frames directly into float32 numpy array
+            # to bypass container demuxing overhead.
+            audio_input: Any
+            try:
+                with wave.open(io.BytesIO(audio_bytes), "rb") as wf:
+                    if (
+                        wf.getnchannels() == 1
+                        and wf.getsampwidth() == 2
+                        and wf.getframerate() == 16000
+                    ):
+                        frames = wf.readframes(wf.getnframes())
+                        audio_input = (
+                            np.frombuffer(frames, dtype=np.int16).astype(np.float32) / 32768.0
+                        )
+                    else:
+                        audio_input = io.BytesIO(audio_bytes)
+            except Exception:
+                audio_input = io.BytesIO(audio_bytes)
+
             segments, info = self._model.transcribe(
-                audio_stream,
+                audio_input,
                 beam_size=5,
                 language="en",
                 vad_filter=True,

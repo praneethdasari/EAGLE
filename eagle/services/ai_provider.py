@@ -553,6 +553,7 @@ class OllamaProvider(OpenAICompatibleProvider):
         local_appdata = os.environ.get("LOCALAPPDATA")
         if local_appdata:
             standard_paths.append(Path(local_appdata) / "Programs" / "Ollama" / "ollama.exe")
+        standard_paths.append(Path(r"E:\Ollama\ollama.exe"))
 
         return any(p.is_file() for p in standard_paths)
 

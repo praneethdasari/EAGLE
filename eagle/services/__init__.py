@@ -37,6 +37,7 @@ from eagle.services.tts import (
     BaseTTSEngine,
     MockTTSEngine,
     Pyttsx3TTSEngine,
+    SpeechPlaybackWorker,
     create_tts_engine,
 )
 from eagle.services.wake_word import (
@@ -84,6 +85,7 @@ __all__ = [
     "BaseTTSEngine",
     "MockTTSEngine",
     "Pyttsx3TTSEngine",
+    "SpeechPlaybackWorker",
     "create_tts_engine",
     # Routing
     "CommandRouter",

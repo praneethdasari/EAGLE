@@ -76,3 +76,5 @@ temp_audio/
 *.mp3
 data/cache/
 data/user_data/
+models/
+.keep

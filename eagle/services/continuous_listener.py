@@ -156,6 +156,7 @@ class ContinuousListener:
         wake_word_engine: BaseWakeWordEngine | None = None,
         stt_engine: BaseSTTEngine | None = None,
         tts_engine: BaseTTSEngine | None = None,
+        speech_worker: Any | None = None,
         command_router: CommandRouter | None = None,
         ai_orchestrator: Any | None = None,
     ) -> None:
@@ -169,6 +170,7 @@ class ContinuousListener:
             self.config, stt_engine=self.stt_engine
         )
         self.tts_engine = tts_engine
+        self.speech_worker = speech_worker
         self.command_router = command_router
         self.ai_orchestrator = ai_orchestrator
 
@@ -180,6 +182,8 @@ class ContinuousListener:
         self._frames_captured: int = 0
         self._is_active = False
         self._is_awaiting_activation_speech = False
+        self._is_awaiting_followup_speech = False
+        self._prev_state_before_speaking: AssistantState = AssistantState.IDLE
         self._followup_timer: threading.Timer | None = None
         self._is_privacy_mode = False
 
@@ -336,13 +340,6 @@ class ContinuousListener:
             if not self._is_active:
                 return
             self._cancel_followup_timer()
-
-        user_title = getattr(self.config.voice, "user_title", "boss").capitalize()
-        followup_prompt = f"{user_title}! Is there anything I can help you with?"
-
-        self.event_bus.publish(SpeechOutputRequestedEvent(text=followup_prompt))
-
-        with self._state_lock:
             self.transition_to(
                 AssistantState.AWAITING_FOLLOWUP,
                 reason="awaiting follow-up user response (5s window)",
@@ -353,6 +350,11 @@ class ContinuousListener:
         self._followup_timer.daemon = True
         self._followup_timer.start()
         logger.debug("Started follow-up response window (%.1fs timeout)", timeout)
+
+        user_title = getattr(self.config.voice, "user_title", "boss").capitalize()
+        followup_prompt = f"{user_title}! Is there anything I can help you with?"
+
+        self.event_bus.publish(SpeechOutputRequestedEvent(text=followup_prompt))
 
     def _on_followup_timeout(self) -> None:
         """Called when the 5-second response window expires without user input."""
@@ -394,7 +396,12 @@ class ContinuousListener:
 
     def interrupt(self) -> None:
         """Safely interrupt active speech playback."""
-        if self.tts_engine:
+        if self.speech_worker:
+            try:
+                self.speech_worker.interrupt()
+            except Exception as exc:
+                logger.debug("Error interrupting speech worker: %s", exc)
+        elif self.tts_engine:
             try:
                 self.tts_engine.stop()
             except Exception as exc:
@@ -561,14 +568,9 @@ class ContinuousListener:
                 )
             )
 
-            # Route command through CommandRouter & AIOrchestrator
-            if self.command_router:
+            # If CommandRouter is not subscribed to EventBus, dispatch directly
+            if self.command_router and not self.command_router.event_bus:
                 route = self.command_router.route(text)
-                logger.debug(
-                    "Routed voice intent: %s (Action: %s)", route.intent.value, route.action_name
-                )
-
-                # Conversational or unrouted queries forwarded to AIOrchestrator
                 if (
                     self.ai_orchestrator
                     and self.ai_orchestrator.is_available()
@@ -615,6 +617,10 @@ class ContinuousListener:
         def on_speech_requested(event: SpeechOutputRequestedEvent) -> None:
             with self._state_lock:
                 if self._is_active and self._state != AssistantState.SPEAKING:
+                    # Do not transition out of AWAITING_FOLLOWUP for the follow-up prompt itself
+                    if "is there anything i can help you with" in event.text.lower():
+                        return
+                    self._prev_state_before_speaking = self._state
                     self.transition_to(AssistantState.SPEAKING, reason="assistant speaking")
 
         def on_speech_finished(event: SpeechOutputFinishedEvent) -> None:
@@ -629,6 +635,27 @@ class ContinuousListener:
                         reason="ready for user command after activation prompt",
                     )
                     self.event_bus.publish(AudioCaptureStartedEvent(mode="command"))
+                    return
+
+                # If the follow-up prompt finished speaking, restart the 5s timer
+                # so the user receives the full 5 seconds from the moment speech ends
+                if "is there anything i can help you with" in event.text.lower():
+                    if self._state == AssistantState.AWAITING_FOLLOWUP:
+                        self._cancel_followup_timer()
+                        timeout = getattr(self.config.voice, "followup_timeout_seconds", 5.0) or 5.0
+                        self._followup_timer = threading.Timer(timeout, self._on_followup_timeout)
+                        self._followup_timer.daemon = True
+                        self._followup_timer.start()
+                    return
+
+                # Check if this was a greeting
+                t_lower = event.text.lower().strip()
+                is_greeting = any(
+                    t_lower.startswith(p)
+                    for p in ("good morning", "good afternoon", "good evening", "good night")
+                )
+                if is_greeting:
+                    self._resume_appropriate_state()
                     return
 
                 if self._state == AssistantState.SPEAKING:

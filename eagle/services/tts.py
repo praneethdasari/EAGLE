@@ -1,11 +1,17 @@
 """Text-to-Speech (TTS) synthesis service and engine abstractions for EAGLE."""
 
 import queue
+import sys
 import threading
 from abc import ABC, abstractmethod
 from typing import Any
 
 from eagle.core.config import AudioConfig
+from eagle.core.events import (
+    EventBus,
+    SpeechOutputFinishedEvent,
+    SpeechOutputRequestedEvent,
+)
 from eagle.core.exceptions import SynthesisError
 from eagle.core.logging import get_logger
 
@@ -106,6 +112,14 @@ class Pyttsx3TTSEngine(BaseTTSEngine):
         if self._engine is not None:
             return
         try:
+            if sys.platform == "win32":
+                try:
+                    import pythoncom  # type: ignore[import-untyped]
+
+                    pythoncom.CoInitialize()
+                except Exception:
+                    pass
+
             import pyttsx3
 
             self._engine = pyttsx3.init()
@@ -177,6 +191,14 @@ class Pyttsx3TTSEngine(BaseTTSEngine):
         if not text.strip():
             return
 
+        if sys.platform == "win32":
+            try:
+                import pythoncom  # type: ignore[import-untyped]
+
+                pythoncom.CoInitialize()
+            except Exception:
+                pass
+
         try:
             self._init_engine()
         except SynthesisError:
@@ -209,6 +231,116 @@ class Pyttsx3TTSEngine(BaseTTSEngine):
     def is_speaking(self) -> bool:
         with self._speaking_lock:
             return self._is_speaking
+
+
+class SpeechPlaybackWorker:
+    """Asynchronous speech playback worker decoupling TTS synthesis from GUI and EventBus threads."""
+
+    def __init__(
+        self,
+        tts_engine: BaseTTSEngine,
+        event_bus: EventBus,
+    ) -> None:
+        self.tts_engine = tts_engine
+        self.event_bus = event_bus
+        self._queue: queue.Queue[tuple[str, bool]] = queue.Queue()
+        self._worker_thread: threading.Thread | None = None
+        self._stop_event = threading.Event()
+        self._speaking_lock = threading.Lock()
+        self._is_active = False
+
+    def start(self) -> None:
+        """Start the background speech playback thread and subscribe to EventBus."""
+        if self._is_active:
+            return
+        self._is_active = True
+        self._stop_event.clear()
+        self.event_bus.subscribe(SpeechOutputRequestedEvent, self._on_speech_requested)
+        self._worker_thread = threading.Thread(
+            target=self._worker_loop,
+            daemon=True,
+            name="EAGLE-SpeechWorker",
+        )
+        self._worker_thread.start()
+        logger.info("SpeechPlaybackWorker started.")
+
+    def stop(self) -> None:
+        """Halt worker thread and cancel active speech playback."""
+        if not self._is_active:
+            return
+        self._is_active = False
+        self._stop_event.set()
+        self.interrupt()
+        if self._worker_thread and self._worker_thread.is_alive():
+            self._worker_thread.join(timeout=1.5)
+        logger.info("SpeechPlaybackWorker stopped.")
+
+    def interrupt(self) -> None:
+        """Immediately stop active speech and purge queued speech requests."""
+        while not self._queue.empty():
+            try:
+                text, _ = self._queue.get_nowait()
+                self._queue.task_done()
+                # Acknowledge purged item to ensure terminal state
+                self.event_bus.publish(SpeechOutputFinishedEvent(text=text))
+            except queue.Empty:
+                break
+        try:
+            self.tts_engine.stop()
+        except Exception as exc:
+            logger.debug("Error interrupting TTS engine: %s", exc)
+
+    def enqueue(self, text: str, interruptible: bool = True) -> None:
+        """Enqueue text for asynchronous speech synthesis."""
+        clean_text = text.strip()
+        if not clean_text:
+            self.event_bus.publish(SpeechOutputFinishedEvent(text=text))
+            return
+        self._queue.put((clean_text, interruptible))
+
+    def _on_speech_requested(self, event: SpeechOutputRequestedEvent) -> None:
+        self.enqueue(event.text)
+
+    def _worker_loop(self) -> None:
+        """Background loop executing speech requests sequentially with COM isolation."""
+        if sys.platform == "win32":
+            try:
+                import pythoncom  # type: ignore[import-untyped]
+
+                pythoncom.CoInitialize()
+            except Exception:
+                pass
+
+        try:
+            while not self._stop_event.is_set():
+                try:
+                    text, interruptible = self._queue.get(timeout=0.2)
+                except queue.Empty:
+                    continue
+
+                if self._stop_event.is_set():
+                    self._queue.task_done()
+                    break
+
+                with self._speaking_lock:
+                    try:
+                        self.tts_engine.speak(text, interruptible=interruptible)
+                    except Exception as exc:
+                        logger.error("TTS speech error for '%s': %s", text, exc, exc_info=True)
+                    finally:
+                        try:
+                            self.event_bus.publish(SpeechOutputFinishedEvent(text=text))
+                        except Exception as pub_exc:
+                            logger.error("Error publishing SpeechOutputFinishedEvent: %s", pub_exc)
+                        self._queue.task_done()
+        finally:
+            if sys.platform == "win32":
+                try:
+                    import pythoncom
+
+                    pythoncom.CoUninitialize()
+                except Exception:
+                    pass
 
 
 def create_tts_engine(config: AudioConfig) -> BaseTTSEngine:

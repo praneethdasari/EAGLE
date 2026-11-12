@@ -232,3 +232,124 @@ def test_known_folder_dispatch_popen(monkeypatch) -> None:
     assert len(spoken_events) == 1
     assert "Opening Downloads in File Explorer." in spoken_events[0].text
 
+
+def test_volume_control_routing() -> None:
+    """Verify volume adjustment phrases route to VOLUME_CONTROL intent."""
+    router = CommandRouter()
+
+    # Set volume
+    r_set = router.route("set volume to 50 percent")
+    assert r_set.intent == CommandIntent.VOLUME_CONTROL
+    assert r_set.parameters["action"] == "set"
+    assert r_set.parameters["level"] == 50.0
+
+    r_set2 = router.route("volume 80%")
+    assert r_set2.intent == CommandIntent.VOLUME_CONTROL
+    assert r_set2.parameters["action"] == "set"
+    assert r_set2.parameters["level"] == 80.0
+
+    # Increase volume
+    r_inc = router.route("increase volume")
+    assert r_inc.intent == CommandIntent.VOLUME_CONTROL
+    assert r_inc.parameters["action"] == "increase"
+
+    # Decrease volume
+    r_dec = router.route("turn down the volume")
+    assert r_dec.intent == CommandIntent.VOLUME_CONTROL
+    assert r_dec.parameters["action"] == "decrease"
+
+    # Mute / unmute
+    r_mute = router.route("mute the audio")
+    assert r_mute.intent == CommandIntent.VOLUME_CONTROL
+    assert r_mute.parameters["action"] == "mute"
+
+    r_unmute = router.route("unmute")
+    assert r_unmute.intent == CommandIntent.VOLUME_CONTROL
+    assert r_unmute.parameters["action"] == "unmute"
+
+    # Get volume
+    r_get = router.route("what is the current volume")
+    assert r_get.intent == CommandIntent.VOLUME_CONTROL
+    assert r_get.parameters["action"] == "get"
+
+
+def test_volume_control_dispatch() -> None:
+    """Verify volume commands dispatch ToolExecutionRequestedEvent."""
+    bus = EventBus()
+    tool_events: list[ToolExecutionRequestedEvent] = []
+    bus.subscribe(ToolExecutionRequestedEvent, lambda e: tool_events.append(e))
+
+    router = CommandRouter(event_bus=bus)
+    route = router.route("set volume to 60%")
+    router.dispatch(route)
+
+    assert len(tool_events) == 1
+    assert tool_events[0].tool_name == "volume_control"
+    assert tool_events[0].arguments["action"] == "set"
+    assert tool_events[0].arguments["level"] == 60.0
+
+
+def test_brightness_control_routing() -> None:
+    """Verify brightness adjustment phrases route to BRIGHTNESS_CONTROL intent."""
+    router = CommandRouter()
+
+    # Set brightness
+    r_set = router.route("set brightness to 70 percent")
+    assert r_set.intent == CommandIntent.BRIGHTNESS_CONTROL
+    assert r_set.parameters["action"] == "set"
+    assert r_set.parameters["level"] == 70.0
+
+    # Increase / decrease
+    r_inc = router.route("increase brightness")
+    assert r_inc.intent == CommandIntent.BRIGHTNESS_CONTROL
+    assert r_inc.parameters["action"] == "increase"
+
+    r_dec = router.route("dim screen")
+    assert r_dec.intent == CommandIntent.BRIGHTNESS_CONTROL
+    assert r_dec.parameters["action"] == "decrease"
+
+    # Max / min
+    r_max = router.route("set brightness to max")
+    assert r_max.intent == CommandIntent.BRIGHTNESS_CONTROL
+    assert r_max.parameters["action"] == "max"
+
+    r_min = router.route("minimum brightness")
+    assert r_min.intent == CommandIntent.BRIGHTNESS_CONTROL
+    assert r_min.parameters["action"] == "min"
+
+    # Get brightness
+    r_get = router.route("what is the brightness")
+    assert r_get.intent == CommandIntent.BRIGHTNESS_CONTROL
+    assert r_get.parameters["action"] == "get"
+
+
+def test_brightness_control_dispatch() -> None:
+    """Verify brightness commands dispatch ToolExecutionRequestedEvent."""
+    bus = EventBus()
+    tool_events: list[ToolExecutionRequestedEvent] = []
+    bus.subscribe(ToolExecutionRequestedEvent, lambda e: tool_events.append(e))
+
+    router = CommandRouter(event_bus=bus)
+    route = router.route("increase brightness")
+    router.dispatch(route)
+
+    assert len(tool_events) == 1
+    assert tool_events[0].tool_name == "brightness_control"
+    assert tool_events[0].arguments["action"] == "increase"
+
+
+def test_uninstalled_ollama_conversational_fallback() -> None:
+    """Verify conversational queries announce offline AI status without crashing or mock fallback."""
+    bus = EventBus()
+    spoken_events: list[SpeechOutputRequestedEvent] = []
+    bus.subscribe(SpeechOutputRequestedEvent, lambda e: spoken_events.append(e))
+
+    # Router without available AI orchestrator
+    router = CommandRouter(event_bus=bus, ai_orchestrator=None)
+    route = router.route("explain artificial intelligence")
+    router.dispatch(route)
+
+    assert len(spoken_events) == 1
+    assert "EAGLE AI reasoning is currently unavailable" in spoken_events[0].text
+    assert "volume, brightness" in spoken_events[0].text
+
