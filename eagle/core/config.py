@@ -1,16 +1,23 @@
 """Configuration management subsystem for EAGLE using Pydantic v2 schemas."""
 
 import json
+import os
+import shutil
+import time
+import uuid
 from pathlib import Path
 from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
 from eagle.core.exceptions import ConfigurationError, InvalidConfigError
+from eagle.core.logging import get_logger
 from eagle.core.paths import (
     get_default_config_path,
     get_documents_dir,
 )
+
+logger = get_logger("core.config")
 
 
 class AudioConfig(BaseModel):
@@ -154,15 +161,35 @@ class SecurityConfig(BaseModel):
     @field_validator("allowed_directories", mode="after")
     @classmethod
     def resolve_allowed_directories(cls, dirs: list[str]) -> list[str]:
+        current_docs = str(get_documents_dir().resolve())
         resolved: list[str] = []
+        has_documents_entry = False
+
         for d in dirs:
             try:
-                res_path = str(Path(d).resolve())
-                if res_path not in resolved:
-                    resolved.append(res_path)
+                p = Path(d).resolve()
+                p_str = str(p)
+                # Check if this entry represents a Windows Documents directory
+                if p.name.lower() == "documents" or p_str.lower() == current_docs.lower():
+                    # If it points to an old, non-existent, or different Documents location, reconcile
+                    if not p.exists() or p_str.lower() != current_docs.lower():
+                        if current_docs not in resolved:
+                            resolved.append(current_docs)
+                        has_documents_entry = True
+                        continue
+                    else:
+                        has_documents_entry = True
+
+                if p_str not in resolved:
+                    resolved.append(p_str)
             except Exception:
                 if d not in resolved:
                     resolved.append(d)
+
+        # Ensure current dynamic Documents directory is always present
+        if not has_documents_entry and current_docs not in resolved:
+            resolved.append(current_docs)
+
         return resolved
 
 
@@ -224,37 +251,266 @@ def is_path_within_allowed(target_path: Path | str, allowed_dirs: list[str]) -> 
         return False
 
 
-def load_config(config_path: Path | str | None = None) -> EagleConfig:
-    """Load and validate EAGLE configuration from disk, falling back to defaults if missing.
+def _cleanup_stale_temp_files(directory: Path, base_name: str, max_age_seconds: float = 300.0) -> None:
+    """Safely remove leftover temporary files older than max_age_seconds."""
+    try:
+        prefix = f"{base_name}.tmp."
+        bak_prefix = f"{base_name}.bak.tmp."
+        now = time.time()
+        for item in directory.iterdir():
+            if item.is_file() and (item.name.startswith(prefix) or item.name.startswith(bak_prefix)):
+                try:
+                    if (now - item.stat().st_mtime) > max_age_seconds:
+                        item.unlink()
+                except OSError:
+                    pass
+    except OSError:
+        pass
 
-    Raises:
-        InvalidConfigError: If JSON syntax or schema validation fails.
+
+def _validate_config_file(path: Path) -> tuple[EagleConfig | None, Exception | None]:
+    """Read and validate a configuration file against EagleConfig schema.
+
+    Returns:
+        (EagleConfig, None) if valid.
+        (None, Exception) if missing, empty, invalid JSON, or schema validation failed.
     """
-    path = Path(config_path) if config_path else get_default_config_path()
+    if not path.exists() or not path.is_file():
+        return None, FileNotFoundError(f"Configuration file '{path}' does not exist.")
 
-    if not path.exists():
+    try:
+        content = path.read_text(encoding="utf-8").strip()
+        if not content:
+            return None, InvalidConfigError(f"Configuration file '{path}' is empty (0 bytes).")
+        raw_data = json.loads(content)
+    except json.JSONDecodeError as exc:
+        return None, InvalidConfigError(f"Configuration file '{path}' is not valid JSON: {exc}")
+    except OSError as exc:
+        return None, ConfigurationError(f"Failed to read configuration file '{path}': {exc}")
+
+    try:
+        cfg = EagleConfig.model_validate(raw_data)
+        return cfg, None
+    except Exception as exc:
+        return None, InvalidConfigError(f"Configuration validation failed for '{path}': {exc}")
+
+
+def load_config(
+    config_path: Path | str | None = None,
+    raise_on_error: bool = False,
+) -> EagleConfig:
+    """Load and validate EAGLE configuration from disk with automatic corruption recovery.
+
+    Recovery Workflow:
+    1. Resolve target path (config_path override or get_default_config_path()).
+    2. Attempt to load and validate primary configuration.
+    3. If primary is missing, empty, or corrupted, attempt recovery from backup (<path>.bak).
+    4. If recovery succeeds:
+       - Preserve the corrupted primary file as <path>.corrupted.<timestamp> for inspection.
+       - Restore the primary configuration atomically using save_config().
+       - Log the recovery event.
+    5. If both primary and backup are invalid or missing:
+       - Preserve any corrupted files as <file>.corrupted.<timestamp>.
+       - Log the critical recovery failure.
+       - If raise_on_error is True, raise InvalidConfigError.
+       - Otherwise, return a safe default EagleConfig instance to ensure startup succeeds.
+    6. Reconcile dynamic system paths (such as Documents folder) if needed.
+    """
+    path = (Path(config_path) if config_path else get_default_config_path()).resolve()
+    target_dir = path.parent
+    bak_path = target_dir / f"{path.name}.bak"
+
+    # Clean up stale temp files
+    if target_dir.exists():
+        _cleanup_stale_temp_files(target_dir, path.name)
+
+    # 1. Neither primary nor backup exists -> default fresh installation
+    if not path.exists() and not bak_path.exists():
+        logger.debug("No configuration file found at '%s'. Using safe defaults.", path)
         return EagleConfig()
 
-    try:
-        with open(path, encoding="utf-8") as f:
-            raw_data = json.load(f)
-    except json.JSONDecodeError as exc:
-        raise InvalidConfigError(f"Configuration file '{path}' is not valid JSON: {exc}") from exc
-    except OSError as exc:
-        raise ConfigurationError(f"Failed to read configuration file '{path}': {exc}") from exc
+    # 2. Attempt loading primary configuration
+    primary_cfg: EagleConfig | None = None
+    primary_err: Exception | None = None
 
-    try:
-        return EagleConfig.model_validate(raw_data)
-    except Exception as exc:
-        raise InvalidConfigError(f"Configuration validation failed for '{path}': {exc}") from exc
+    if path.exists():
+        primary_cfg, primary_err = _validate_config_file(path)
+
+    if primary_cfg is not None:
+        # Reconcile persisted config if allowed directories changed (e.g. relocated Documents)
+        try:
+            with open(path, encoding="utf-8") as f:
+                raw_data = json.load(f)
+            if (
+                raw_data.get("security", {}).get("allowed_directories")
+                != primary_cfg.security.allowed_directories
+            ):
+                save_config(primary_cfg, path)
+        except Exception as save_err:
+            logger.debug("Could not automatically re-save reconciled config: %s", save_err)
+        return primary_cfg
+
+    # 3. Primary failed or is missing -> Attempt recovery from backup
+    if path.exists():
+        logger.warning(
+            "Primary configuration '%s' is corrupted or invalid (%s). Attempting automatic recovery from '%s'...",
+            path,
+            primary_err,
+            bak_path,
+        )
+    else:
+        logger.warning(
+            "Primary configuration '%s' is missing. Attempting automatic recovery from backup '%s'...",
+            path,
+            bak_path,
+        )
+
+    bak_cfg: EagleConfig | None = None
+    bak_err: Exception | None = None
+
+    if bak_path.exists():
+        bak_cfg, bak_err = _validate_config_file(bak_path)
+
+    timestamp = int(time.time())
+
+    def _preserve_corrupt(file_path: Path) -> Path | None:
+        try:
+            if file_path.exists():
+                if file_path.stat().st_size > 0:
+                    dest = target_dir / f"{file_path.name}.corrupted.{timestamp}"
+                    if dest.exists():
+                        dest = target_dir / f"{file_path.name}.corrupted.{timestamp}_{uuid.uuid4().hex[:4]}"
+                    os.replace(file_path, dest)
+                    logger.info("Preserved corrupted file '%s' as '%s'.", file_path, dest)
+                    return dest
+                else:
+                    file_path.unlink()
+        except OSError as preserve_err:
+            logger.warning("Could not preserve corrupted file '%s': %s", file_path, preserve_err)
+        return None
+
+    if bak_cfg is not None:
+        # Recovery from backup succeeded!
+        logger.info(
+            "Automatic recovery succeeded: restoring configuration from backup '%s' to '%s'.",
+            bak_path,
+            path,
+        )
+
+        # Preserve corrupted primary file for user inspection if it existed and had bytes
+        _preserve_corrupt(path)
+
+        # Restore valid configuration atomically to primary path
+        try:
+            save_config(bak_cfg, path)
+        except Exception as restore_err:
+            logger.warning("Failed to persist recovered configuration to '%s': %s", path, restore_err)
+
+        return bak_cfg
+
+    # 4. Both primary and backup failed (or are corrupted)
+    logger.error(
+        "Configuration recovery failed for '%s'. Primary error: %s; Backup error: %s. Preserving files and falling back to safe defaults.",
+        path,
+        primary_err,
+        bak_err,
+    )
+
+    # Preserve corrupted files so user data is never lost
+    _preserve_corrupt(path)
+    _preserve_corrupt(bak_path)
+
+    if raise_on_error:
+        raise InvalidConfigError(
+            f"Configuration recovery failed for '{path}'. Primary error: {primary_err}; Backup error: {bak_err}"
+        )
+
+    return EagleConfig()
 
 
 def save_config(config: EagleConfig, config_path: Path | str | None = None) -> None:
-    """Save configuration object to disk as formatted JSON."""
-    path = Path(config_path) if config_path else get_default_config_path()
+    """Save configuration object to disk using atomic writes and automatic backup rotation.
+
+    Guarantees:
+    1. Backup Rotation: If a valid configuration already exists at the target path,
+       it is safely preserved to <path>.bak before replacement. Corrupted existing
+       configurations never overwrite a valid backup.
+    2. Atomic Writes: Writes to a unique temporary file in the same directory, flushes
+       and fsyncs buffers, validates schema integrity, and replaces atomically with os.replace.
+    3. Cleanup: Temporary files are cleaned up reliably on success or failure.
+    """
+    path = (Path(config_path) if config_path else get_default_config_path()).resolve()
+    target_dir = path.parent
+    bak_path = target_dir / f"{path.name}.bak"
+
     try:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with open(path, "w", encoding="utf-8") as f:
-            f.write(config.model_dump_json(indent=2))
+        target_dir.mkdir(parents=True, exist_ok=True)
     except OSError as exc:
-        raise ConfigurationError(f"Failed to save configuration to '{path}': {exc}") from exc
+        raise ConfigurationError(f"Failed to create configuration directory '{target_dir}': {exc}") from exc
+
+    # Clean up any abandoned temporary files from previous interrupted writes
+    _cleanup_stale_temp_files(target_dir, path.name)
+
+    # Serialize and validate the new configuration before touching disk
+    try:
+        json_data = config.model_dump_json(indent=2)
+        # Pre-validate dumped JSON
+        EagleConfig.model_validate_json(json_data)
+    except Exception as exc:
+        raise ConfigurationError(f"Failed to serialize configuration for '{path}': {exc}") from exc
+
+    # Backup rotation: preserve existing valid configuration
+    if path.exists() and path.is_file():
+        existing_cfg, _ = _validate_config_file(path)
+        if existing_cfg is not None:
+            # Existing configuration is valid; rotate it safely to .bak
+            bak_tmp = target_dir / f"{path.name}.bak.tmp.{os.getpid()}_{uuid.uuid4().hex[:8]}"
+            try:
+                shutil.copy2(path, bak_tmp)
+                with open(bak_tmp, "a", encoding="utf-8") as bf:
+                    bf.flush()
+                    os.fsync(bf.fileno())
+                os.replace(bak_tmp, bak_path)
+            except Exception as bak_err:
+                logger.warning("Failed to rotate configuration backup to '%s': %s", bak_path, bak_err)
+            finally:
+                if bak_tmp.exists():
+                    try:
+                        bak_tmp.unlink()
+                    except OSError:
+                        pass
+        else:
+            logger.warning(
+                "Existing configuration '%s' is corrupted or invalid; preserving existing backup '%s' intact.",
+                path,
+                bak_path,
+            )
+
+    # Atomic write to temporary file
+    tmp_path = target_dir / f"{path.name}.tmp.{os.getpid()}_{uuid.uuid4().hex[:8]}"
+    try:
+        with open(tmp_path, "w", encoding="utf-8") as f:
+            f.write(json_data)
+            f.flush()
+            os.fsync(f.fileno())
+
+        # Validate on-disk temporary file before replacing active configuration
+        verified_cfg, verify_err = _validate_config_file(tmp_path)
+        if verified_cfg is None:
+            raise ConfigurationError(f"Temporary configuration verification failed: {verify_err}")
+
+        # Atomic replacement on Windows NTFS
+        os.replace(tmp_path, path)
+    except Exception as exc:
+        if tmp_path.exists():
+            try:
+                tmp_path.unlink()
+            except OSError:
+                pass
+        raise ConfigurationError(f"Failed to save configuration atomically to '{path}': {exc}") from exc
+    finally:
+        if tmp_path.exists():
+            try:
+                tmp_path.unlink()
+            except OSError:
+                pass

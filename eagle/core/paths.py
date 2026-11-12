@@ -68,13 +68,20 @@ def get_user_cache_dir() -> Path:
 def get_default_config_path() -> Path:
     """Return path to primary configuration file.
 
-    Priority:
-    1. If './config.json' exists in the current working directory, use it (portable mode).
-    2. Otherwise, use persistent user data directory: '%APPDATA%/EAGLE/config.json'.
+    Precedence Hierarchy:
+    1. Explicit CLI argument (--config) handled by callers / CLI parser.
+    2. EAGLE_CONFIG_PATH environment variable (if defined and non-empty).
+    3. Portable mode: './config.json' in current working directory (if it exists).
+    4. Persistent user data directory: '%APPDATA%/EAGLE/config.json' (or ~/.eagle on non-Windows).
     """
+    env_cfg = os.environ.get("EAGLE_CONFIG_PATH")
+    if env_cfg and env_cfg.strip():
+        return Path(env_cfg.strip()).resolve()
+
     local_cfg = Path("config.json")
     if local_cfg.is_file():
         return local_cfg.resolve()
+
     return get_user_data_dir() / "config.json"
 
 
@@ -89,8 +96,16 @@ def get_logs_dir() -> Path:
 
 
 def get_models_dir() -> Path:
-    """Return directory for local offline models (faster-whisper, openWakeWord)."""
-    models_dir = get_user_cache_dir() / "models"
+    r"""Return directory for local offline models (faster-whisper, openWakeWord).
+
+    Preserves storage architecture on E: drive:
+    - In source mode: E:\Desktop\anti gravity projects\EAGLE\models
+    - In frozen PyInstaller mode: <executable_dir>\models
+    """
+    if is_frozen():
+        models_dir = get_executable_dir() / "models"
+    else:
+        models_dir = get_app_root() / "models"
     try:
         models_dir.mkdir(parents=True, exist_ok=True)
     except OSError:
